@@ -1,6 +1,6 @@
 {
   "exportedAt": "2026-05-15T21:10:55.792065+00:00",
-  "catalog": "Week 20 - EPIC Operations",
+  "catalog": "Week 20 - Baronesha",
   "products": [
     {
       "cat": "new",
@@ -2026,5 +2026,6 @@
       "imgIdx": 252,
       "customImage": null
     }
-  ]
+  ],
+  "showPrices": true
 }
