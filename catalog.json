@@ -1,6 +1,7 @@
 {
-  "exportedAt": "2026-05-15T21:10:55.792065+00:00",
+  "exportedAt": "2026-05-15T21:59:52.915Z",
   "catalog": "Week 20 - Baronesha",
+  "showPrices": false,
   "products": [
     {
       "cat": "new",
@@ -797,7 +798,7 @@
     {
       "cat": "ready",
       "name": "COCA COLA CHERRY FLOAT 24 X 330ML",
-      "caseP": 1.0,
+      "caseP": 1,
       "palletP": 0.91,
       "imgIdx": 99,
       "customImage": null
@@ -1069,7 +1070,7 @@
     {
       "cat": "ready",
       "name": "HERRS CAROLINA REAPER CURLS 12 X 170G",
-      "caseP": 3.0,
+      "caseP": 3,
       "palletP": 2.73,
       "imgIdx": 133,
       "customImage": null
@@ -1109,7 +1110,7 @@
     {
       "cat": "ready",
       "name": "HERRS JALAPENO CHEESE CURLS 12 X 170G",
-      "caseP": 3.0,
+      "caseP": 3,
       "palletP": 2.73,
       "imgIdx": 138,
       "customImage": null
@@ -1278,7 +1279,7 @@
       "cat": "ready",
       "name": "LIPTON POP CHEER POPCORN GRAPE GREEN TEA 30 X 50G",
       "caseP": 1.1,
-      "palletP": 1.0,
+      "palletP": 1,
       "imgIdx": 159,
       "customImage": null
     },
@@ -1286,7 +1287,7 @@
       "cat": "ready",
       "name": "LIPTON POP CHEER POPCORN MILK TEA 30 X 50G",
       "caseP": 1.1,
-      "palletP": 1.0,
+      "palletP": 1,
       "imgIdx": 160,
       "customImage": null
     },
@@ -1294,7 +1295,7 @@
       "cat": "ready",
       "name": "LIPTON POP CHEER POPCORN PEACH OOLONG 30 X 50G",
       "caseP": 1.1,
-      "palletP": 1.0,
+      "palletP": 1,
       "imgIdx": 161,
       "customImage": null
     },
@@ -1525,7 +1526,7 @@
     {
       "cat": "ready",
       "name": "OMAN CHIPS 10 X 150G",
-      "caseP": 2.0,
+      "caseP": 2,
       "palletP": 1.82,
       "imgIdx": 190,
       "customImage": null
@@ -1533,7 +1534,7 @@
     {
       "cat": "ready",
       "name": "OMAN CHIPS BLIK 16 X 137G",
-      "caseP": 2.0,
+      "caseP": 2,
       "palletP": 1.82,
       "imgIdx": 191,
       "customImage": null
@@ -2026,6 +2027,5 @@
       "imgIdx": 252,
       "customImage": null
     }
-  ],
-  "showPrices": true
+  ]
 }
