@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPIC Catalog — Week 20 | Baronesha</title>
+<meta name="description" content="Katalogu javor EPIC Operations - Week 20">
+<style>
+  :root {
+    --epic-orange: #FF5A1F;
+    --epic-orange-dark: #E04A12;
+    --epic-blue: #0B2A6B;
+    --bg: #FFF7F2;
+    --card: #FFFFFF;
+    --ink: #1A1A1A;
+    --muted: #6B6B6B;
+    --line: #EFE3DA;
+    --shadow: 0 1px 2px rgba(11,42,107,.06), 0 6px 20px rgba(11,42,107,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", "Inter", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+  }
+  .loading {
+    position: fixed; inset: 0; background: var(--epic-blue); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 1000; transition: opacity .4s;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+  .loading-logo {
+    background: var(--epic-orange); color: #fff;
+    font-weight: 900; font-size: 42px; letter-spacing: 2px;
+    padding: 14px 26px; border-radius: 10px;
+    transform: skewX(-6deg); margin-bottom: 24px;
+  }
+  .loading-logo span { display: inline-block; transform: skewX(6deg); }
+  .loading-text { font-size: 14px; opacity: .8; letter-spacing: .5px; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid rgba(255,255,255,.2);
+    border-top-color: var(--epic-orange);
+    border-radius: 50%; animation: spin .8s linear infinite; margin-top: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  header.topbar {
+    background: var(--epic-blue); color: #fff;
+    padding: 18px 28px; display: flex; align-items: center; justify-content: space-between;
+    gap: 24px; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 2px 14px rgba(0,0,0,.12);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    background: var(--epic-orange); color: #fff;
+    font-weight: 900; font-size: 22px; letter-spacing: 1px;
+    padding: 6px 12px; border-radius: 6px;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); transform: skewX(-6deg);
+  }
+  .brand-logo span { display: inline-block; transform: skewX(6deg); }
+  .brand-title { font-size: 14px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; opacity: .85; }
+  .brand-sub { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .last-updated {
+    font-size: 12px; color: rgba(255,255,255,.7);
+    padding: 6px 12px; background: rgba(255,255,255,.08);
+    border-radius: 999px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 28px 80px; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
+  .toolbar-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search {
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 9px 14px;
+    font-size: 14px; min-width: 260px;
+    font-family: inherit; color: var(--ink); box-shadow: var(--shadow);
+  }
+  .search:focus { outline: 2px solid var(--epic-orange); border-color: transparent; }
+  .filter-tabs { display: flex; gap: 6px; background: #fff; padding: 4px; border-radius: 10px; box-shadow: var(--shadow); }
+  .filter-tab {
+    padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600;
+    cursor: pointer; color: var(--muted); transition: all .15s;
+    border: none; background: transparent; font-family: inherit;
+  }
+  .filter-tab.active { background: var(--epic-blue); color: #fff; }
+  .filter-tab:not(.active):hover { color: var(--ink); background: #f5efe9; }
+  .stats { font-size: 13px; color: var(--muted); }
+  .stats strong { color: var(--epic-blue); font-weight: 700; }
+  .category { margin-bottom: 36px; }
+  .category-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--epic-orange);
+  }
+  .category-title {
+    font-size: 20px; font-weight: 800; letter-spacing: -.3px;
+    color: var(--epic-blue); text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .category-title::before { content: ""; width: 6px; height: 22px; background: var(--epic-orange); border-radius: 2px; }
+  .category-count { background: var(--epic-blue); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 14px;
+    box-shadow: var(--shadow); border: 1px solid var(--line);
+    transition: all .2s ease;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(11,42,107,.08), 0 12px 28px rgba(11,42,107,.10);
+  }
+  .card-img-wrap {
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    background: #f7f1ea; border-radius: 10px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line);
+  }
+  .card-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .card-img-placeholder { color: #c8b9aa; font-size: 12px; font-weight: 600; text-align: center; padding: 16px; }
+  .card-name {
+    font-weight: 700; font-size: 13px; line-height: 1.35;
+    color: var(--ink); padding: 4px 4px 0;
+    min-height: 36px;
+  }
+  .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .price-block { background: #fafafa; border-radius: 8px; padding: 8px 10px; border: 1px solid var(--line); }
+  .price-label {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px;
+  }
+  .price-value { display: flex; align-items: baseline; gap: 3px; }
+  .euro { color: var(--epic-orange); font-weight: 800; font-size: 14px; }
+  .price-num { font-weight: 800; font-size: 17px; color: var(--ink); }
+  .card-cat-pill {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; padding: 3px 8px; border-radius: 4px;
+    display: inline-block; align-self: flex-start;
+  }
+  .pill-new { background: #FFE8DC; color: var(--epic-orange-dark); }
+  .pill-ready { background: #DCE6FF; color: var(--epic-blue); }
+  .footer-note {
+    text-align: center; color: var(--muted); font-size: 12px;
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line);
+  }
+  .footer-note strong { color: var(--epic-blue); }
+  .error-box {
+    background: #ffe8e0; border: 1px solid #ffc4ad; color: #8a2c12;
+    padding: 20px; border-radius: 12px; margin: 40px auto; max-width: 600px;
+    text-align: center;
+  }
+  .empty-state {
+    text-align: center; color: var(--muted); padding: 60px 20px;
+    font-size: 14px;
+  }
+  @media (max-width: 600px) {
+    header.topbar { padding: 14px 16px; flex-direction: column; align-items: flex-start; }
+    .container { padding: 16px; }
+    .search { min-width: 0; width: 100%; }
+    .toolbar-left { width: 100%; }
+    .filter-tabs { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="loading-logo"><span>EPIC</span></div>
+  <div class="loading-text">Duke ngarkuar katalogun...</div>
+  <div class="spinner"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo"><span>EPIC</span></div>
+    <div>
+      <div class="brand-title">Catalog — Week 20</div>
+      <div class="brand-sub">Baronesha · Wholesale prices</div>
+    </div>
+  </div>
+  <div class="last-updated" id="lastUpdated"></div>
+</header>
+
+<div class="container">
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" id="search" class="search" placeholder="🔍 Kërko produkt...">
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">Të gjitha</button>
+        <button class="filter-tab" data-filter="new">New Arrivals</button>
+        <button class="filter-tab" data-filter="ready">Ready Stock</button>
+      </div>
+    </div>
+    <div class="stats">Gjithsej: <strong id="totalCount">0</strong> produkte</div>
+  </div>
+
+  <div id="categoriesContainer"></div>
+
+  <div class="footer-note">
+    <strong>Baronesha</strong> · Çmimet janë në Euro (€), ekskluzive për shitje me shumicë.<br>
+    Për porosi dhe pyetje, na kontaktoni direkt.
+  </div>
+</div>
+
+<script src="epic_images.js"></script>
+<script>
+let products = [];
+let activeFilter = "all";
+let searchQuery = "";
+
+async function loadCatalog() {
+  try {
+    const res = await fetch("catalog.json?t=" + Date.now()); // bust cache
+    if (!res.ok) throw new Error("Failed to load");
+    const data = await res.json();
+    products = data.products || [];
+
+    // Show last updated
+    if (data.exportedAt) {
+      const d = new Date(data.exportedAt);
+      const opts = { day: "2-digit", month: "short", year: "numeric" };
+      document.getElementById("lastUpdated").textContent =
+        "Përditësuar: " + d.toLocaleDateString("sq-AL", opts);
+    }
+    render();
+  } catch (e) {
+    document.getElementById("categoriesContainer").innerHTML = `
+      <div class="error-box">
+        <strong>Gabim në ngarkim</strong><br>
+        Katalogu nuk u ngarkua. Provo të rifreskosh faqen.
+      </div>
+    `;
+  } finally {
+    setTimeout(() => document.getElementById("loading").classList.add("hidden"), 200);
+  }
+}
+
+function getImageFor(p) {
+  if (p.customImage) return p.customImage;
+  if (typeof p.imgIdx === "number" && p.imgIdx >= 0 &&
+      window.EPIC_IMAGES && p.imgIdx < window.EPIC_IMAGES.length) {
+    return window.EPIC_IMAGES[p.imgIdx];
+  }
+  return null;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+function render() {
+  const container = document.getElementById("categoriesContainer");
+  container.innerHTML = "";
+
+  const filtered = products.filter(p => {
+    if (activeFilter !== "all" && p.cat !== activeFilter) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+  document.getElementById("totalCount").textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">Asnjë produkt nuk u gjet.</div>`;
+    return;
+  }
+
+  const cats = activeFilter === "all" ? ["new","ready"] : [activeFilter];
+  const catNames = { new: "New Arrivals", ready: "Ready Stock" };
+
+  cats.forEach(cat => {
+    const items = filtered.filter(p => p.cat === cat);
+    if (items.length === 0) return;
+
+    const section = document.createElement("div");
+    section.className = "category";
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.innerHTML = `<div class="category-title">${catNames[cat]}</div><div class="category-count">${items.length} produkte</div>`;
+    section.appendChild(header);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(p => grid.appendChild(buildCard(p)));
+    section.appendChild(grid);
+    container.appendChild(section);
+  });
+}
+
+function buildCard(p) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const pillClass = p.cat === "new" ? "pill-new" : "pill-ready";
+  const pillText = p.cat === "new" ? "New" : "Ready";
+  const imgSrc = getImageFor(p);
+  const imgContent = imgSrc
+    ? `<img class="card-img" src="${imgSrc}" alt="${escapeHtml(p.name)}" loading="lazy">`
+    : `<div class="card-img-placeholder">Pa foto</div>`;
+
+  card.innerHTML = `
+    <div class="card-img-wrap">${imgContent}</div>
+    <span class="card-cat-pill ${pillClass}">${pillText}</span>
+    <div class="card-name">${escapeHtml(p.name)}</div>
+    <div class="price-row">
+      <div class="price-block">
+        <div class="price-label">Case Unit</div>
+        <div class="price-value"><span class="euro">€</span><span class="price-num">${Number(p.caseP).toFixed(2)}</span></div>
+      </div>
+      <div class="price-block">
+        <div class="price-label">Pallet Unit</div>
+        <div class="price-value"><span class="euro">€</span><span class="price-num">${Number(p.palletP).toFixed(2)}</span></div>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+document.querySelectorAll(".filter-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeFilter = tab.dataset.filter;
+    render();
+  });
+});
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value;
+  render();
+});
+
+loadCatalog();
+</script>
+</body>
+</html>

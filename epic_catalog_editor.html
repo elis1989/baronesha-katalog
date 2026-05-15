@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPIC Catalog Editor — Week 20</title>
+<style>
+  :root {
+    --epic-orange: #FF5A1F;
+    --epic-orange-dark: #E04A12;
+    --epic-blue: #0B2A6B;
+    --epic-blue-dark: #07194A;
+    --bg: #FFF7F2;
+    --card: #FFFFFF;
+    --ink: #1A1A1A;
+    --muted: #6B6B6B;
+    --line: #EFE3DA;
+    --success: #1B8754;
+    --danger: #C62828;
+    --shadow: 0 1px 2px rgba(11,42,107,.06), 0 6px 20px rgba(11,42,107,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", "Inter", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+  }
+  .loading {
+    position: fixed; inset: 0; background: var(--epic-blue); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 1000; transition: opacity .4s;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+  .loading-logo {
+    background: var(--epic-orange); color: #fff;
+    font-weight: 900; font-size: 42px; letter-spacing: 2px;
+    padding: 14px 26px; border-radius: 10px;
+    transform: skewX(-6deg); margin-bottom: 24px;
+  }
+  .loading-logo span { display: inline-block; transform: skewX(6deg); }
+  .loading-text { font-size: 14px; opacity: .8; letter-spacing: .5px; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid rgba(255,255,255,.2);
+    border-top-color: var(--epic-orange);
+    border-radius: 50%; animation: spin .8s linear infinite; margin-top: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  header.topbar {
+    background: var(--epic-blue); color: #fff;
+    padding: 18px 28px; display: flex; align-items: center; justify-content: space-between;
+    gap: 24px; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 2px 14px rgba(0,0,0,.12);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    background: var(--epic-orange); color: #fff;
+    font-weight: 900; font-size: 22px; letter-spacing: 1px;
+    padding: 6px 12px; border-radius: 6px;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.18); transform: skewX(-6deg);
+  }
+  .brand-logo span { display: inline-block; transform: skewX(6deg); }
+  .brand-title { font-size: 14px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; opacity: .85; }
+  .brand-sub { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    border: none; cursor: pointer; padding: 10px 16px; border-radius: 8px;
+    font-weight: 600; font-size: 13px; letter-spacing: .3px; transition: all .15s ease;
+    display: inline-flex; align-items: center; gap: 8px; font-family: inherit;
+  }
+  .btn-primary { background: var(--epic-orange); color: #fff; }
+  .btn-primary:hover { background: var(--epic-orange-dark); transform: translateY(-1px); }
+  .btn-ghost { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.15); }
+  .btn-ghost:hover { background: rgba(255,255,255,.16); }
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 28px 80px; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
+  .toolbar-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search {
+    background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 9px 14px;
+    font-size: 14px; min-width: 260px;
+    font-family: inherit; color: var(--ink); box-shadow: var(--shadow);
+  }
+  .search:focus { outline: 2px solid var(--epic-orange); border-color: transparent; }
+  .filter-tabs { display: flex; gap: 6px; background: #fff; padding: 4px; border-radius: 10px; box-shadow: var(--shadow); }
+  .filter-tab {
+    padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600;
+    cursor: pointer; color: var(--muted); transition: all .15s;
+    border: none; background: transparent; font-family: inherit;
+  }
+  .filter-tab.active { background: var(--epic-blue); color: #fff; }
+  .filter-tab:not(.active):hover { color: var(--ink); background: #f5efe9; }
+  .stats { font-size: 13px; color: var(--muted); }
+  .stats strong { color: var(--epic-blue); font-weight: 700; }
+  .category { margin-bottom: 36px; }
+  .category-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--epic-orange);
+  }
+  .category-title {
+    font-size: 20px; font-weight: 800; letter-spacing: -.3px;
+    color: var(--epic-blue); text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .category-title::before { content: ""; width: 6px; height: 22px; background: var(--epic-orange); border-radius: 2px; }
+  .category-count { background: var(--epic-blue); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 14px;
+    box-shadow: var(--shadow); border: 1px solid var(--line);
+    transition: all .2s ease; position: relative;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(11,42,107,.08), 0 12px 28px rgba(11,42,107,.10);
+  }
+  .card-img-wrap {
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    background: #f7f1ea; border-radius: 10px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line);
+  }
+  .card-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .card-img-placeholder { color: #c8b9aa; font-size: 12px; font-weight: 600; text-align: center; padding: 16px; }
+  .img-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.55));
+    opacity: 0; transition: opacity .15s;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 8px; gap: 6px;
+  }
+  .card-img-wrap:hover .img-overlay { opacity: 1; }
+  .img-btn {
+    background: rgba(255,255,255,.95); color: var(--epic-blue);
+    border: none; border-radius: 6px;
+    padding: 5px 10px; font-size: 11px; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  .img-btn:hover { background: var(--epic-orange); color: #fff; }
+  .img-btn.danger:hover { background: var(--danger); color: #fff; }
+  .card-name {
+    width: 100%; border: none; background: transparent;
+    font-family: inherit; font-weight: 700; font-size: 13px; line-height: 1.3;
+    color: var(--ink); padding: 6px 8px; border-radius: 6px;
+    resize: none; min-height: 40px; transition: background .15s;
+  }
+  .card-name:hover { background: #fafafa; }
+  .card-name:focus { outline: 2px solid var(--epic-orange); background: #fff8f3; }
+  .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .price-block { background: #fafafa; border-radius: 8px; padding: 7px 9px; border: 1px solid var(--line); }
+  .price-label {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px;
+  }
+  .price-input-wrap { display: flex; align-items: center; gap: 4px; }
+  .euro { color: var(--epic-orange); font-weight: 800; font-size: 15px; }
+  .price-input {
+    border: none; background: transparent; font-family: inherit;
+    font-weight: 700; font-size: 15px; color: var(--ink); width: 100%; padding: 2px 0;
+  }
+  .price-input:focus { outline: none; }
+  .price-block:focus-within { border-color: var(--epic-orange); background: #fff8f3; }
+  .card-actions { display: flex; gap: 6px; margin-top: 2px; align-items: center; }
+  .card-cat-pill {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; padding: 3px 8px; border-radius: 4px;
+    display: inline-block; margin-right: auto;
+  }
+  .pill-new { background: #FFE8DC; color: var(--epic-orange-dark); }
+  .pill-ready { background: #DCE6FF; color: var(--epic-blue); }
+  .btn-icon {
+    background: transparent; border: 1px solid var(--line);
+    color: var(--muted); padding: 5px 9px; border-radius: 6px;
+    cursor: pointer; font-size: 11px; font-weight: 600;
+    transition: all .15s; font-family: inherit;
+  }
+  .btn-icon:hover { border-color: var(--danger); color: var(--danger); background: #fff5f5; }
+  .add-card {
+    background: transparent; border: 2px dashed #d4c4b6;
+    border-radius: 14px; padding: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 360px; cursor: pointer;
+    color: var(--muted); font-weight: 600; font-size: 14px;
+    transition: all .2s; font-family: inherit;
+  }
+  .add-card:hover { border-color: var(--epic-orange); color: var(--epic-orange); background: #fff8f3; }
+  .add-card .plus { font-size: 36px; font-weight: 300; margin-bottom: 6px; line-height: 1; }
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(11,42,107,.55); backdrop-filter: blur(4px);
+    z-index: 100; display: none;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; padding: 28px;
+    max-width: 460px; width: 100%; box-shadow: 0 30px 60px rgba(0,0,0,.3);
+  }
+  .modal h3 { margin: 0 0 6px; color: var(--epic-blue); font-size: 20px; }
+  .modal p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label {
+    display: block; font-size: 12px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px;
+  }
+  .modal-field input, .modal-field select {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 12px; font-family: inherit; font-size: 14px;
+    color: var(--ink); background: #fff;
+  }
+  .modal-field input:focus, .modal-field select:focus { outline: 2px solid var(--epic-orange); border-color: transparent; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .btn-secondary { background: #f0eae3; color: var(--ink); }
+  .btn-secondary:hover { background: #e5ddd2; }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(40px);
+    background: var(--epic-blue); color: #fff;
+    padding: 12px 22px; border-radius: 999px;
+    font-size: 14px; font-weight: 600;
+    box-shadow: 0 10px 30px rgba(11,42,107,.3);
+    opacity: 0; transition: all .3s; z-index: 200; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.danger { background: var(--danger); }
+  .footer-note {
+    text-align: center; color: var(--muted); font-size: 12px;
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line);
+  }
+  .warn-banner {
+    background: #fff3cd; border: 1px solid #ffe69c; color: #664d03;
+    padding: 12px 16px; border-radius: 10px; margin-bottom: 18px;
+    font-size: 13px; display: none;
+  }
+  .warn-banner.show { display: block; }
+  @media (max-width: 600px) {
+    header.topbar { padding: 14px 16px; flex-direction: column; align-items: flex-start; }
+    .container { padding: 16px; }
+    .search { min-width: 0; width: 100%; }
+    .toolbar-left { width: 100%; }
+    .filter-tabs { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="loading-logo"><span>EPIC</span></div>
+  <div class="loading-text">Duke ngarkuar katalogun...</div>
+  <div class="spinner"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo"><span>EPIC</span></div>
+    <div>
+      <div class="brand-title">Catalog Editor</div>
+      <div class="brand-sub">Week 20 — We make offers you can't refuse</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost" id="btnImport">↥ Import JSON</button>
+    <button class="btn btn-ghost" id="btnExportCsv">⬇ Export CSV</button>
+    <button class="btn btn-primary" id="btnExportJson">⬇ Export JSON</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+    <input type="file" id="imgInput" accept="image/*" style="display:none">
+  </div>
+</header>
+
+<div class="container">
+  <div class="warn-banner" id="warnBanner">
+    ⚠ Skedari <code>epic_images.js</code> nuk u gjet. Fotot e produkteve nuk do të shfaqen. Sigurohu që të dy skedarët të jenë në të njëjtin folder.
+  </div>
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" id="search" class="search" placeholder="🔍 Kërko produkt...">
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">Të gjitha</button>
+        <button class="filter-tab" data-filter="new">New Arrivals</button>
+        <button class="filter-tab" data-filter="ready">Ready Stock</button>
+      </div>
+    </div>
+    <div class="stats">Gjithsej: <strong id="totalCount">0</strong> produkte</div>
+  </div>
+  <div id="categoriesContainer"></div>
+  <div class="footer-note">
+    Ndryshimet ruhen automatikisht në browser. Përdor "Export" për të shkarkuar të dhënat.
+  </div>
+</div>
+
+<div class="modal-bg" id="modalAdd">
+  <div class="modal">
+    <h3>Shto Produkt të Ri</h3>
+    <p>Plotëso të dhënat e produktit të ri.</p>
+    <div class="modal-field">
+      <label>Kategoria</label>
+      <select id="newCat">
+        <option value="new">New Arrivals</option>
+        <option value="ready">Ready Stock</option>
+      </select>
+    </div>
+    <div class="modal-field"><label>Emri i produktit</label><input type="text" id="newName" placeholder="P.sh. OREO MILK CHOCOLATE 12 X 100G"></div>
+    <div class="modal-field"><label>Çmimi për kasë (€)</label><input type="number" id="newCase" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="modal-field"><label>Çmimi për palet (€)</label><input type="number" id="newPallet" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelAdd">Anulo</button>
+      <button class="btn btn-primary" id="confirmAdd">Shto Produktin</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="epic_images.js" onerror="document.getElementById('warnBanner').classList.add('show')"></script>
+
+<script>
+const DEFAULT_PRODUCTS = [
+  {cat:"new", name:"OREO CAKE CHOCO 24 X (6 X 24G)", caseP:1.15, palletP:1.04},
+  {cat:"new", name:"OREO WAFER CHOCO VANILLA 24 X 117G", caseP:0.88, palletP:0.80},
+  {cat:"new", name:"OREO WAFER ROLL CHOCOLATE 20 X 54G", caseP:0.74, palletP:0.67},
+  {cat:"new", name:"OREO WAFER DOUBLE CHOCO 24 X 117G", caseP:0.88, palletP:0.80},
+  {cat:"new", name:"MILKA CHOCO STICKS 20 X 112G", caseP:1.15, palletP:1.04},
+  {cat:"new", name:"MILKA TENDER COW 16 X 140G", caseP:1.55, palletP:1.41},
+  {cat:"new", name:"JOUYCO CRAVINGZ CROISSANTS CHOCOLATE & HAZELNUT 12 X 5 PACK", caseP:1.20, palletP:1.09},
+  {cat:"new", name:"JOUYCO CHOCOMALLOW CAKE 18 X 150G", caseP:1.06, palletP:0.96},
+  {cat:"new", name:"JOUYCO SPONGIEZ GOLDEN 21 X (5 X 40G)", caseP:1.06, palletP:0.96},
+  {cat:"new", name:"HERSHEY COOKIES N CREME 36 X 43G", caseP:0.70, palletP:0.63},
+  {cat:"new", name:"REESE'S OVERLOAD 18 X 42G", caseP:0.88, palletP:0.80},
+  {cat:"new", name:"REESE'S PEANUT BUTTER WHITE BAR 16 X 90G", caseP:0.54, palletP:0.49},
+  {cat:"new", name:"REESE'S STICKS 20 X 42G", caseP:0.79, palletP:0.73},
+  {cat:"new", name:"REESE'S 2 PEANUT BUTTER CUPS 24 X 39.5G", caseP:0.70, palletP:0.63},
+  {cat:"new", name:"REESE'S 2 PEANUT BUTTER CUPS WHITE 24 X 39.5G", caseP:0.70, palletP:0.63},
+  {cat:"new", name:"REESE'S PIECES POUCH 10 X 90G", caseP:1.89, palletP:1.72},
+  {cat:"new", name:"REESE'S PEANUT BUTTER BIG CUP CHOCO LAVA 16 X 79G", caseP:1.28, palletP:1.16},
+  {cat:"new", name:"REESE'S PEANUT BUTTER BIG CUP STRAWBERRY 16 X 79G", caseP:1.28, palletP:1.16},
+  {cat:"new", name:"REESE'S DIPPED PEANUTS 10 X 90G", caseP:1.89, palletP:1.72},
+  {cat:"new", name:"REESE'S NUTRAGEOUS 18 X 47G", caseP:0.79, palletP:0.72},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS PASSION FRUIT 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS GRAPE JUICE 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS GREEN APPLE 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS BLUE RASPBERRY 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS RAINBOW RUSH 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS FUZZY PEACH 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS RASPBERRY PUNCH 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS PINEAPPLE BLAST 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"ready", name:"CORNCHITO ROASTED CORN 24 X 12 PACKS", caseP:0.17, palletP:0.15},
+  {cat:"ready", name:"CORNCHITO CHICKEN 24 X 12 PACKS", caseP:0.17, palletP:0.15},
+  {cat:"ready", name:"CORNCHITO CHEESE 24 X 12 PACKS", caseP:0.17, palletP:0.15},
+  {cat:"ready", name:"BUBS SKALLE SOUR RASPBERRY 12 X 90G", caseP:1.12, palletP:1.01},
+  {cat:"ready", name:"BUBS SKALLE SWEET & SALTY RASPBERRY LICORICE 16 X 90G", caseP:1.12, palletP:1.01},
+  {cat:"ready", name:"QLOVE PASSION FRUIT MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE EXOTIC COCONUT MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE INTENSE CHOCOLATE MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE CHOCO MINT COOKIE MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE RED VELVET MOCHI 24 X 168G", caseP:1.87, palletP:1.70},
+  {cat:"ready", name:"QLOVE DUBAI MOCHI 24 X 168G", caseP:2.42, palletP:2.20},
+  {cat:"ready", name:"QLOVE DUBAI MOCHI 24 X 45G", caseP:1.40, palletP:1.26},
+  {cat:"ready", name:"AMOS 4D BUILDING BLOCKS JUICE FUDGE DISPLAY 8 X 45G", caseP:0.81, palletP:0.74},
+  {cat:"ready", name:"AMOS 4D MILO COLA LEMON 36 X 50G", caseP:0.54, palletP:0.49},
+  {cat:"ready", name:"AMOS 4D TINA GUMMY PEACH GRAPE 36 X 50G", caseP:0.54, palletP:0.49},
+  {cat:"ready", name:"NERDS ROPE RAINBOW 24 X 26G", caseP:1.04, palletP:0.95},
+  {cat:"ready", name:"PRINGLES BBQ STEAK 20 X 110G", caseP:2.10, palletP:1.91},
+  {cat:"ready", name:"PRINGLES HOT SPICY 20 X 110G", caseP:2.10, palletP:1.91},
+  {cat:"ready", name:"PRINGLES SOUR CREAM ONION 40 X 53G", caseP:1.32, palletP:1.20},
+  {cat:"ready", name:"PRINGLES TOMATO 20 X 110G", caseP:1.82, palletP:1.65},
+  {cat:"ready", name:"AMOS UNICORN AND FRIENDS FRUIT JUICE GUMMY 8 X 75G", caseP:1.75, palletP:1.59},
+  {cat:"ready", name:"BERGEN BUBBLE GUM COOKIES 18 X 128G", caseP:0.95, palletP:0.86},
+  {cat:"ready", name:"BAIWEI & DISNEY 3D GUMMY LITCHI & BLUEBERRY 40 X 70G", caseP:0.95, palletP:0.86},
+  {cat:"ready", name:"BAZOOKA SPLASHZ CHEWY BERRY BLAST 12 X 120G", caseP:1.66, palletP:1.51},
+  {cat:"ready", name:"BERGEN COOKIES BUBBLE GUM 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BERGEN COOKIES CANDY FLOSS 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BERGEN COOKIES JELLY CUBE BLACK CURRANT & MILK CREAM 18 X 128G", caseP:1.02, palletP:0.93},
+  {cat:"ready", name:"BERGEN COOKIES JELLY CUBE STRAWBERRY & PEANUT BUTTER 18 X 128G", caseP:1.02, palletP:0.93},
+  {cat:"ready", name:"BERGEN MATCHA COOKIES STRAWBERRY CREAM 36 X 96G", caseP:0.93, palletP:0.85},
+  {cat:"ready", name:"BERGEN MATCHA PRALINES STRAWBERRY CREAM 18 X 110G", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BERGEN OBSESSION PEANUT BUTTER COCOA COOKIES 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BERGEN OBSESSION PISTACHIO WHITE COOKIES 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BINQI CHOCOLATE BISCUIT STITCH 24 X 50G", caseP:0.83, palletP:0.75},
+  {cat:"ready", name:"BINQI MILK BISCUIT STITCH 24 X 50G", caseP:0.83, palletP:0.75},
+  {cat:"ready", name:"BOMBA ENERGY BLUE 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY CHERRY 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY CLASSIC 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY JUNGLE 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY MOJITO 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY PINK 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOURBON KIKORI STUMP 10 X 66G", caseP:2.30, palletP:2.09},
+  {cat:"ready", name:"BROWNIE BRUCE BANNER 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE CANNABIS GREEN EXTREME STRONG EFFECT 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE CANNABIS RED EXTREME STRONG EFFECT 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE GREEN GRANDADDY 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE LEMON HAZE 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE MOROCCAN HASH 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE OG KUSH 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE PURPLE HAZE 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE RASTAFARIAN CANNABIS EXTREME STRONG 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE RASTAFARIAN CANNABIS STRONG 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BROWNIE WHITE WIDOW 80G", caseP:2.40, palletP:2.18},
+  {cat:"ready", name:"BUBBLE TEA BLUE BUTTERFLY ICE TEA WITH BLUEBERRY BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BUBBLE TEA COCONUT ICE TEA WITH CHOCOLATE BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BUBBLE TEA MANGO ICE TEA WITH ENERGY DRINK BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BUBBLE TEA PEACH ICE TEA WITH STRAWBERRY BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"CALYPSO APPLE OASIS 12 X 330ML", caseP:1.23, palletP:1.12},
+  {cat:"ready", name:"CALYPSO BERRY BLOOM 12 X 330ML", caseP:1.23, palletP:1.12},
+  {cat:"ready", name:"CALYPSO BLOOD ORANGE BREEZE 12 X 330ML", caseP:1.23, palletP:1.12},
+  {cat:"ready", name:"CARAMBAR LOLLYS 20 X 156G", caseP:1.75, palletP:1.59},
+  {cat:"ready", name:"CHEETOS AMERICAN TURKEY 12 X 25G", caseP:0.45, palletP:0.41},
+  {cat:"ready", name:"CHEETOS AMERICAN TURKEY 22 X 90G", caseP:1.27, palletP:1.15},
+  {cat:"ready", name:"CHEETOS CHEESE XL 14 X 130G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CHEETOS KETCHUP XL 14 X 150G", caseP:1.79, palletP:1.63},
+  {cat:"ready", name:"CHEETOS PAPRIKA 14 X 130G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CHEETOS PELOTAZOS FUTEBOLAS 30 X 130G", caseP:1.39, palletP:1.26},
+  {cat:"ready", name:"CHEETOS PIZZERINI XL 14 X 160G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CHEETOS SPICY SHRIMP ROLLS 30 X 40G", caseP:0.97, palletP:0.88},
+  {cat:"ready", name:"CHEETOS SPIRALS SER KETCHUP XL 14 X 130G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CINNAMON TOAST CRUNCH MINIS 12 X 349G", caseP:5.41, palletP:4.92},
+  {cat:"ready", name:"CINNAMON TOAST CRUNCH ROLLS 12 X 303G", caseP:5.41, palletP:4.92},
+  {cat:"ready", name:"COCA COLA CHERRY FLOAT 24 X 330ML", caseP:1.00, palletP:0.91},
+  {cat:"ready", name:"COCA COLA LEMON ZERO CHINA 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"COCA COLA PEACH 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"COCA COLA STRAWBERRY 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"COCA COLA VANILLA 12 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"COLA GAZA 24 X 250ML", caseP:0.50, palletP:0.45},
+  {cat:"ready", name:"COLA GAZA LIGHT 24 X 250ML", caseP:0.50, palletP:0.45},
+  {cat:"ready", name:"DELAFFE LEMON POPPING 50 X 230ML", caseP:1.16, palletP:1.05},
+  {cat:"ready", name:"DELAFFE MELON POPPING 50 X 230ML", caseP:1.16, palletP:1.05},
+  {cat:"ready", name:"DORITOS AVOCADO & CHEESE CHIPS 12 X 55G", caseP:1.83, palletP:1.67},
+  {cat:"ready", name:"DORITOS DINAMITA FLAMIN HOT 20 X 85G", caseP:1.36, palletP:1.24},
+  {cat:"ready", name:"DR PEPPER BLACKBERRY 12 X 355ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"DR PEPPER CREAM SODA 12 X 355ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"DR PEPPER STRAWBERRY & CREAM 12 X 355ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"FANTA BERRY USA 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA GRAPE 12 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"FANTA GRAPE USA 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA GREEN APPLE 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"FANTA JASMIN PEACH 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"FANTA LYCHEE 12 X 320ML", caseP:0.71, palletP:0.64},
+  {cat:"ready", name:"FANTA LYCHEE 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"FANTA PEACH 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA STRAWBERRY 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA WATERMELON 24 X 330ML", caseP:0.88, palletP:0.80},
+  {cat:"ready", name:"FRUIT SHAPED JELLY SOUR 24 X 280G", caseP:1.04, palletP:0.95},
+  {cat:"ready", name:"FUNNYCANDY CHICKEN N GUM 12 X 21G", caseP:0.38, palletP:0.34},
+  {cat:"ready", name:"FUNNYCANDY JACKPOT GUMBALL MACHINE 12 X 30G", caseP:0.83, palletP:0.76},
+  {cat:"ready", name:"FUNNYCANDY MINI SUGAR POPS 24 X 150G", caseP:1.88, palletP:1.70},
+  {cat:"ready", name:"FUNNYCANDY POP-LOLLY DINO 36 X 16G", caseP:0.33, palletP:0.30},
+  {cat:"ready", name:"FUNNYCANDY POP-LOLLY UNICORN 36 X 16G", caseP:0.33, palletP:0.30},
+  {cat:"ready", name:"FUNNYCANDY ROLLI GUM 30 X 15G", caseP:0.35, palletP:0.32},
+  {cat:"ready", name:"HALLS DROPS COLA 20 X 32.5G", caseP:0.60, palletP:0.55},
+  {cat:"ready", name:"HALLS DROPS HONEY LEMON 20 X 33.5G", caseP:0.60, palletP:0.55},
+  {cat:"ready", name:"HEFTY SFREEZER SLIDER QUART 15CT", caseP:1.67, palletP:1.52},
+  {cat:"ready", name:"HERRS CAROLINA REAPER CURLS 12 X 170G", caseP:3.00, palletP:2.73},
+  {cat:"ready", name:"HERRS CHEESE CURLS 12 X 170G", caseP:2.83, palletP:2.58},
+  {cat:"ready", name:"HERRS HONEY BBQ CHIPS 42 X 28.4G", caseP:0.67, palletP:0.61},
+  {cat:"ready", name:"HERRS HONEY CHEESE CURLS 42 X 28.4G", caseP:0.67, palletP:0.61},
+  {cat:"ready", name:"HERRS HOT 'N HONEY CURLS 12 X 113G", caseP:1.82, palletP:1.66},
+  {cat:"ready", name:"HERRS JALAPENO CHEESE CURLS 12 X 170G", caseP:3.00, palletP:2.73},
+  {cat:"ready", name:"HERRS JALAPENO CHEESE STIX 8 X 227G", caseP:3.38, palletP:3.07},
+  {cat:"ready", name:"HOT RAGE MANGO CINNAMON LIME CANDY 24 X 50G", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"JAWBREAKER BLACKCURRANT 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER BLUE RASPBERRY 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER COLA 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER FIREBALL 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER SOUR APPLE 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER STRAWBERRY 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER TROPICAL 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER USA ASSORTED FLAVOURS HARD CANDY WITH BUBBLEGUM 16 X 99G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"JAWBREAKER WATERMELON 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JUICY DROP BLASTS 12 X 120G", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"JUICY DROP BLASTS FRUIT TROPICAL 12 X 120G", caseP:1.67, palletP:1.52},
+  {cat:"ready", name:"JUICY DROP GUMMIES 12 X 57G", caseP:1.42, palletP:1.29},
+  {cat:"ready", name:"JUICY DROP GUMMIES XTREME 12 X 57G", caseP:1.42, palletP:1.29},
+  {cat:"ready", name:"LAYS ABALONE 22 X 56G", caseP:1.41, palletP:1.28},
+  {cat:"ready", name:"LAYS CHIPS FRIED CRAB 22 X 70G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"LAYS KUMQUAT 22 X 56G", caseP:1.41, palletP:1.28},
+  {cat:"ready", name:"LAYS SPICY CRAYFISH 22 X 70G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"LAYS TARO LIME 22 X 60G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"LIPTON POP CHEER POPCORN GRAPE GREEN TEA 30 X 50G", caseP:1.10, palletP:1.00},
+  {cat:"ready", name:"LIPTON POP CHEER POPCORN MILK TEA 30 X 50G", caseP:1.10, palletP:1.00},
+  {cat:"ready", name:"LIPTON POP CHEER POPCORN PEACH OOLONG 30 X 50G", caseP:1.10, palletP:1.00},
+  {cat:"ready", name:"LOTTE POKEPUNI FRUIT GUMMY 12 X 80G", caseP:2.58, palletP:2.35},
+  {cat:"ready", name:"MENTOS DUO GRAPE & SODA 10 X 45G", caseP:1.60, palletP:1.45},
+  {cat:"ready", name:"MIRINDA GRAPE 24 X 330ML", caseP:0.58, palletP:0.53},
+  {cat:"ready", name:"MISKETS DUBAI MILK PISTACHIO CORNET 12 X 50G", caseP:1.96, palletP:1.78},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE ALMOND DRAGEE 24 X 20G", caseP:0.69, palletP:0.63},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE CORNET 12 X 70G", caseP:1.66, palletP:1.51},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED BLACKBERRY 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED FIG 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED MANGO 12 X 80G", caseP:2.58, palletP:2.34},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED STRAWBERRY 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE HAZELNUT DRAGEE 24 X 20G", caseP:0.69, palletP:0.63},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE PISTACHIO DRAGEE 12 X 70G", caseP:2.62, palletP:2.38},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE PISTACHIO DRAGEE 24 X 20G", caseP:0.83, palletP:0.75},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE WALNUT DRAGEE 12 X 70G", caseP:2.23, palletP:2.02},
+  {cat:"ready", name:"MISKETS STRAWBERRY WHITE CHOCOLATE COVERED BISCUIT 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS WHITE CHOCOLATE & STRAWBERRY CREAM CORNET 6 X 50G", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"MISKETS WHITE CHOCOLATE CORNET 12 X 70G", caseP:1.66, palletP:1.51},
+  {cat:"ready", name:"MISKETS WHITE CHOCOLATE FREEZE DRIED STRAWBERRY 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MORINAGA HI-CHEW GRAPE 12 X 55G", caseP:1.40, palletP:1.27},
+  {cat:"ready", name:"MORINAGA HI-CHEW STRAWBERRY 12 X 55G", caseP:1.40, palletP:1.27},
+  {cat:"ready", name:"MRBEAST FEASTABLES PEANUT BUTTER EGG 35G X 30", caseP:1.20, palletP:1.09},
+  {cat:"ready", name:"NERDS BIG CHEWY THEATER BOX 12 X 120G", caseP:1.88, palletP:1.70},
+  {cat:"ready", name:"NERDS ROPE VERY BERRY 24 X 26G", caseP:2.08, palletP:1.89},
+  {cat:"ready", name:"OKF BARLEY TEA 20 X 500ML", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"OKF CORN SILK TEA 20 X 500ML", caseP:0.90, palletP:0.82},
+  {cat:"ready", name:"OKF JELLY CHEW COCONUT 20 X 350ML", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"OKF JELLY CHEW PINEAPPLE 20 X 350ML", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"OKF RICE MILK 20 X 500ML", caseP:0.90, palletP:0.82},
+  {cat:"ready", name:"OMAN CHIPS 10 X 150G", caseP:2.00, palletP:1.82},
+  {cat:"ready", name:"OMAN CHIPS BLIK 16 X 137G", caseP:2.00, palletP:1.82},
+  {cat:"ready", name:"OREO BIRTHDAY CAKE 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO BLUEBERRY ICE CREAM ROLL 24 X 110G", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"OREO CHEESE 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO DOUBLE FRUIT BLUEBERRY & RASPBERRY 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO ICE CREAM FILLED WITH MATCHA 24 X 97G", caseP:1.46, palletP:1.33},
+  {cat:"ready", name:"OREO MINI CHOCOLATE 24 X 55G", caseP:1.31, palletP:1.19},
+  {cat:"ready", name:"OREO MINI ORIGINAL 24 X 55G", caseP:1.31, palletP:1.19},
+  {cat:"ready", name:"OREO ORIGINAL 24 X 110G", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"OREO STRAWBERRY 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO STRAWBERRY CHEESECAKE 16 X 154G", caseP:1.09, palletP:0.99},
+  {cat:"ready", name:"OREO WAFER BAR WHITE CHOCOLATE 30 X 58G", caseP:1.53, palletP:1.39},
+  {cat:"ready", name:"PICKLE JUICE EXTRA STRENGTH SHOT 12 X 75ML", caseP:2.08, palletP:1.89},
+  {cat:"ready", name:"PICKLE JUICE EXTRA STRENGTH SHOT 24 X 75ML", caseP:1.67, palletP:1.52},
+  {cat:"ready", name:"POCKY CLOUD CHEESECAKE 36 X 48G", caseP:2.22, palletP:2.02},
+  {cat:"ready", name:"POCKY LION BANANA PUDDING 50 X 35G", caseP:0.98, palletP:0.89},
+  {cat:"ready", name:"POCKY LITTLE RABBIT STRAWBERRY MILK 50 X 35G", caseP:0.98, palletP:0.89},
+  {cat:"ready", name:"POCKY PANDA MILK CHOCOLATE 50 X 35G", caseP:0.98, palletP:0.89},
+  {cat:"ready", name:"POKEMON CHOCOLATE FILLED BISCUIT 48 X 52G", caseP:1.09, palletP:0.99},
+  {cat:"ready", name:"POKEMON SNACK CHOCOLATE PUFFS 6 X 23G", caseP:1.83, palletP:1.67},
+  {cat:"ready", name:"POST TIMBITS BIRTHDAY CAKE CEREAL 10 X 311G", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"QDOL SPONGEBOB LYCHEE SPARKLING WATER 24 X 330ML", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"QDOL SPONGEBOB STRAWBERRY SPARKLING WATER 24 X 330ML", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"QLOVE BLOSSOM GARDEN FLAVOUR 24 X 120G", caseP:2.10, palletP:1.91},
+  {cat:"ready", name:"QLOVE CREME BRULEE FLAVOUR 24 X 120G", caseP:2.10, palletP:1.91},
+  {cat:"ready", name:"QLOVE EXOTIC LYCHEE MOCHI 24 X 80G", caseP:1.40, palletP:1.27},
+  {cat:"ready", name:"QLOVE MATCHA LATTE MOCHI 24 X 80G", caseP:1.40, palletP:1.27},
+  {cat:"ready", name:"QLOVE MILK FLAVOUR 24 X 120G", caseP:2.10, palletP:1.91},
+  {cat:"ready", name:"QLOVE TROPICAL MANGO MOCHI 24 X 80G", caseP:1.40, palletP:1.27},
+  {cat:"ready", name:"RAP SNACKS LIL BABY ALL IN FLAVOR 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RAP SNACKS LIL BABY ALL IN HOT 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RAP SNACKS NICKI MINAJ BAR-B-QUIN HONEY TRUFFLE 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RAP SNACKS RICK ROSS SWEET CHILLI LEMON PEPPER 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RED BULL SAKURA CHERRY 12 X 250ML", caseP:1.50, palletP:1.36},
+  {cat:"ready", name:"RIBON SAOTOME LEMON CHALLENGE 12 X 60G", caseP:2.59, palletP:2.36},
+  {cat:"ready", name:"SAMYANG EXTREME ZZALDDUK 2 X SPICY 24 X 80G", caseP:1.54, palletP:1.40},
+  {cat:"ready", name:"SCREAMERS NIPPERS 12 X 100G", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"SCREAMERS SOURACHA SOUR 12 X 90ML", caseP:1.28, palletP:1.16},
+  {cat:"ready", name:"SKITTLES CHEWIES FRUIT 16 X 137G", caseP:1.63, palletP:1.48},
+  {cat:"ready", name:"SOUR PATCH PEACH 24 X 80G", caseP:0.69, palletP:0.63},
+  {cat:"ready", name:"SPONGEBOB COATED STICKS BLUEBERRY 36 X 21G", caseP:0.54, palletP:0.49},
+  {cat:"ready", name:"SPONGEBOB COATED STICKS STRAWBERRY 36 X 21G", caseP:1.61, palletP:1.46},
+  {cat:"ready", name:"SPRITE RASPBERRY LEMON ZERO 12 X 330ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"SUGAR DADDY INC JELLY FRUITS 24 X 370ML", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"SUGAR DADDY INC SOUR JELLY FRUITS 24 X 370ML", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"SUNTJENS BERENKOPPEN MET COLASMAAK 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS BERENKOPPEN MET KAUWGUMSMAAK 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS BLAUWE FRIETEN 1 X 1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS DRACULA TANDEN MET DROPSMAAK 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS GEKLEURDE DOODSKOPPEN 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS GESUIKERDE AARDBEIEN 1 X 1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE BLAUWE DOODSKOPPEN 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE BLAUWE FRIETEN 1 X 1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE GEKLEURDE BEREN 1 X 1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE KERSEN 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE SUNSET MET FRANBOZEN- EN DROPSMAAK 1 X 1.1KG", caseP:6.50, palletP:5.91},
+  {cat:"ready", name:"TAISHO LIPOVITAN KIDS JELLY GRAPE FLAVOR 6 X 125G", caseP:2.08, palletP:1.89},
+  {cat:"ready", name:"TICTAC MIX JAR ORANGE MINT 24 X 255G", caseP:3.71, palletP:3.37},
+  {cat:"ready", name:"VEIRA DUBAI STYLE 12 X 100G", caseP:1.96, palletP:1.78},
+  {cat:"ready", name:"VEIRA DUBAI STYLE PINK 12 X 100G", caseP:1.96, palletP:1.78},
+  {cat:"ready", name:"WARHEADS TWIST AND SHAKE SUPER SOUR 18 X 18G", caseP:0.56, palletP:0.51},
+  {cat:"ready", name:"WINGY CRUNCH CRISPY CHOCOLATE 12 X 50G", caseP:1.21, palletP:1.10}
+];
+// Assign each product its sequential image index
+DEFAULT_PRODUCTS.forEach((p, i) => { p.imgIdx = i; });
+
+const STORAGE_KEY = "epic_catalog_week20_v2";
+const CUSTOM_IMG_KEY = "epic_catalog_week20_v2_imgs";
+let products = [];
+let customImages = {};
+let activeFilter = "all";
+let searchQuery = "";
+let currentEditingId = null;
+
+function genId() { return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2,7); }
+
+function loadProducts() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      products = JSON.parse(saved);
+    } else {
+      products = DEFAULT_PRODUCTS.map(p => ({ id: genId(), ...p }));
+      saveProducts();
+    }
+    const savedImgs = localStorage.getItem(CUSTOM_IMG_KEY);
+    if (savedImgs) customImages = JSON.parse(savedImgs);
+  } catch(e) {
+    products = DEFAULT_PRODUCTS.map(p => ({ id: genId(), ...p }));
+  }
+}
+function saveProducts() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); } catch(e) {}
+}
+function saveCustomImages() {
+  try { localStorage.setItem(CUSTOM_IMG_KEY, JSON.stringify(customImages)); }
+  catch(e) { showToast("Hapësira në browser u mbush", "danger"); }
+}
+
+function getImageFor(p) {
+  if (customImages[p.id]) return customImages[p.id];
+  if (typeof p.imgIdx === "number" && p.imgIdx >= 0 && window.EPIC_IMAGES && p.imgIdx < window.EPIC_IMAGES.length) {
+    return window.EPIC_IMAGES[p.imgIdx];
+  }
+  return null;
+}
+
+function render() {
+  const container = document.getElementById("categoriesContainer");
+  container.innerHTML = "";
+  const filtered = products.filter(p => {
+    if (activeFilter !== "all" && p.cat !== activeFilter) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+  document.getElementById("totalCount").textContent = filtered.length;
+
+  const cats = activeFilter === "all" ? ["new","ready"] : [activeFilter];
+  const catNames = { new: "New Arrivals", ready: "Ready Stock" };
+  cats.forEach(cat => {
+    const items = filtered.filter(p => p.cat === cat);
+    const section = document.createElement("div");
+    section.className = "category";
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.innerHTML = `<div class="category-title">${catNames[cat]}</div><div class="category-count">${items.length} produkte</div>`;
+    section.appendChild(header);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(p => { grid.appendChild(buildCard(p)); });
+    const addCard = document.createElement("button");
+    addCard.className = "add-card";
+    addCard.innerHTML = `<div class="plus">+</div>Shto produkt të ri`;
+    addCard.onclick = () => openAddModal(cat);
+    grid.appendChild(addCard);
+    section.appendChild(grid);
+    container.appendChild(section);
+  });
+}
+
+function buildCard(p) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.id = p.id;
+  const pillClass = p.cat === "new" ? "pill-new" : "pill-ready";
+  const pillText = p.cat === "new" ? "New" : "Ready";
+  const imgSrc = getImageFor(p);
+  const imgContent = imgSrc
+    ? `<img class="card-img" src="${imgSrc}" alt="" loading="lazy">`
+    : `<div class="card-img-placeholder">Pa foto<br><small>Kliko 📷 për të shtuar</small></div>`;
+
+  card.innerHTML = `
+    <div class="card-img-wrap">
+      ${imgContent}
+      <div class="img-overlay">
+        <button class="img-btn btn-change-img">📷 Ndrysho</button>
+        ${imgSrc ? `<button class="img-btn danger btn-remove-img">✕</button>` : ''}
+      </div>
+    </div>
+    <textarea class="card-name" rows="2" spellcheck="false">${escapeHtml(p.name)}</textarea>
+    <div class="price-row">
+      <div class="price-block">
+        <div class="price-label">Case Unit</div>
+        <div class="price-input-wrap"><span class="euro">€</span><input type="number" class="price-input price-case" step="0.01" min="0" value="${p.caseP.toFixed(2)}"></div>
+      </div>
+      <div class="price-block">
+        <div class="price-label">Pallet Unit</div>
+        <div class="price-input-wrap"><span class="euro">€</span><input type="number" class="price-input price-pallet" step="0.01" min="0" value="${p.palletP.toFixed(2)}"></div>
+      </div>
+    </div>
+    <div class="card-actions">
+      <span class="card-cat-pill ${pillClass}">${pillText}</span>
+      <button class="btn-icon btn-delete">✕ Fshij</button>
+    </div>
+  `;
+
+  const nameEl = card.querySelector(".card-name");
+  const caseEl = card.querySelector(".price-case");
+  const palletEl = card.querySelector(".price-pallet");
+  const delEl = card.querySelector(".btn-delete");
+  const changeImgEl = card.querySelector(".btn-change-img");
+  const removeImgEl = card.querySelector(".btn-remove-img");
+
+  function autoGrow() { nameEl.style.height = "auto"; nameEl.style.height = nameEl.scrollHeight + "px"; }
+  setTimeout(autoGrow, 0);
+
+  nameEl.addEventListener("input", () => { autoGrow(); p.name = nameEl.value; saveProducts(); });
+  caseEl.addEventListener("change", () => {
+    const v = parseFloat(caseEl.value);
+    if (!isNaN(v)) { p.caseP = v; saveProducts(); }
+  });
+  palletEl.addEventListener("change", () => {
+    const v = parseFloat(palletEl.value);
+    if (!isNaN(v)) { p.palletP = v; saveProducts(); }
+  });
+  delEl.addEventListener("click", () => {
+    if (confirm(`Fshij "${p.name}"?`)) {
+      products = products.filter(x => x.id !== p.id);
+      delete customImages[p.id];
+      saveProducts(); saveCustomImages();
+      render();
+      showToast("Produkti u fshi", "danger");
+    }
+  });
+  changeImgEl.addEventListener("click", () => {
+    currentEditingId = p.id;
+    document.getElementById("imgInput").click();
+  });
+  if (removeImgEl) {
+    removeImgEl.addEventListener("click", () => {
+      if (confirm("Hiq foton e këtij produkti?")) {
+        delete customImages[p.id];
+        p.imgIdx = -1;
+        saveProducts(); saveCustomImages();
+        render();
+      }
+    });
+  }
+  return card;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+document.getElementById("imgInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file || !currentEditingId) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const max = 240;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > max) { h = h * max / w; w = max; } }
+      else { if (h > max) { w = w * max / h; h = max; } }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      customImages[currentEditingId] = dataUrl;
+      saveCustomImages();
+      render();
+      showToast("Fotoja u përditësua", "success");
+      currentEditingId = null;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
+
+function openAddModal(defaultCat) {
+  document.getElementById("newCat").value = defaultCat || "ready";
+  document.getElementById("newName").value = "";
+  document.getElementById("newCase").value = "";
+  document.getElementById("newPallet").value = "";
+  document.getElementById("modalAdd").classList.add("show");
+  setTimeout(() => document.getElementById("newName").focus(), 50);
+}
+document.getElementById("cancelAdd").onclick = () => { document.getElementById("modalAdd").classList.remove("show"); };
+document.getElementById("modalAdd").addEventListener("click", (e) => {
+  if (e.target.id === "modalAdd") document.getElementById("modalAdd").classList.remove("show");
+});
+document.getElementById("confirmAdd").onclick = () => {
+  const name = document.getElementById("newName").value.trim();
+  const caseP = parseFloat(document.getElementById("newCase").value);
+  const palletP = parseFloat(document.getElementById("newPallet").value);
+  const cat = document.getElementById("newCat").value;
+  if (!name) { showToast("Plotëso emrin", "danger"); return; }
+  if (isNaN(caseP) || isNaN(palletP)) { showToast("Plotëso çmimet", "danger"); return; }
+  products.unshift({ id: genId(), cat, name, caseP, palletP, imgIdx: -1 });
+  saveProducts();
+  render();
+  document.getElementById("modalAdd").classList.remove("show");
+  showToast("Produkti u shtua — kliko 📷 për foto", "success");
+};
+
+document.querySelectorAll(".filter-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeFilter = tab.dataset.filter;
+    render();
+  });
+});
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value;
+  render();
+});
+
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("btnExportJson").onclick = () => {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    catalog: "Week 20 - EPIC Operations",
+    products: products.map(p => ({
+      cat: p.cat, name: p.name, caseP: p.caseP, palletP: p.palletP,
+      imgIdx: p.imgIdx, customImage: customImages[p.id] || null
+    }))
+  };
+  download("epic_catalog_week20.json", JSON.stringify(data, null, 2), "application/json");
+  showToast("JSON u shkarkua", "success");
+};
+document.getElementById("btnExportCsv").onclick = () => {
+  const rows = [["Category","Product Name","Case Unit Price (EUR)","Pallet Unit Price (EUR)"]];
+  products.forEach(p => {
+    rows.push([
+      p.cat === "new" ? "New Arrivals" : "Ready Stock",
+      p.name, p.caseP.toFixed(2), p.palletP.toFixed(2)
+    ]);
+  });
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(",")).join("\n");
+  download("epic_catalog_week20.csv", "\ufeff" + csv, "text/csv;charset=utf-8");
+  showToast("CSV u shkarkua", "success");
+};
+document.getElementById("btnImport").onclick = () => { document.getElementById("fileInput").click(); };
+document.getElementById("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      const imported = data.products || data;
+      if (!Array.isArray(imported)) throw new Error("");
+      if (!confirm(`Importo ${imported.length} produkte? Të dhënat aktuale do zëvendësohen.`)) return;
+      const newCustomImgs = {};
+      products = imported.map(p => {
+        const id = genId();
+        if (p.customImage) newCustomImgs[id] = p.customImage;
+        const { customImage, ...rest } = p;
+        return { id, ...rest };
+      });
+      customImages = newCustomImgs;
+      saveProducts(); saveCustomImages();
+      render();
+      showToast(`U importuan ${imported.length} produkte`, "success");
+    } catch(err) { showToast("Skedari është i pavlefshëm", "danger"); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+let toastTimeout;
+function showToast(msg, type) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (type || "");
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { t.classList.remove("show"); }, 2400);
+}
+
+loadProducts();
+render();
+setTimeout(() => {
+  document.getElementById("loading").classList.add("hidden");
+  if (!window.EPIC_IMAGES) {
+    document.getElementById("warnBanner").classList.add("show");
+  }
+}, 300);
+</script>
+</body>
+</html>
