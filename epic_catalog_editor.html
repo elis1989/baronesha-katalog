@@ -1017,11 +1017,9 @@ document.getElementById("btnExportCsv").onclick = () => {
   });
   const csv = rows.map(r => r.map(cell => {
     const s = String(cell);
-    return /[",
-]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
-  }).join(",")).join("
-");
-  download("baronesha_catalog_week20.csv", "﻿" + csv, "text/csv;charset=utf-8");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(",")).join("\n");
+  download("baronesha_catalog_week20.csv", "\ufeff" + csv, "text/csv;charset=utf-8");
   showToast("CSV u shkarkua", "success");
 };
 document.getElementById("btnImport").onclick = () => { document.getElementById("fileInput").click(); };
