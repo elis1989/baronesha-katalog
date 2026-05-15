@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baronesha Catalog Editor — Week 20</title>
+<style>
+  :root {
+    --gold: #C9A55C;
+    --gold-light: #E5C97A;
+    --gold-dark: #A8843D;
+    --gold-deep: #8B6B2E;
+    --black: #0A0A0A;
+    --black-soft: #141414;
+    --black-card: #1A1A1A;
+    --ink: #F5EFE0;
+    --muted: #8C8378;
+    --line: #2B2418;
+    --line-gold: rgba(201, 165, 92, 0.25);
+    --success: #4CAF50;
+    --danger: #D9534F;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+    background: var(--black);
+    background-image:
+      radial-gradient(ellipse at top, rgba(201, 165, 92, 0.05) 0%, transparent 60%);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .serif { font-family: "Cormorant Garamond", Georgia, serif; }
+
+  .loading {
+    position: fixed; inset: 0; background: var(--black); color: var(--gold);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 1000; transition: opacity .5s;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+  .loading img { max-width: 160px; opacity: .9; }
+  .spinner {
+    width: 26px; height: 26px;
+    border: 2px solid rgba(201, 165, 92, .15);
+    border-top-color: var(--gold);
+    border-radius: 50%; animation: spin 1s linear infinite; margin-top: 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  header.topbar {
+    background: linear-gradient(180deg, #000 0%, var(--black) 100%);
+    border-bottom: 1px solid var(--line-gold);
+    padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 24px; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 4px 30px rgba(0,0,0,.6);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    height: 50px; width: auto;
+    filter: drop-shadow(0 2px 6px rgba(201, 165, 92, 0.25));
+  }
+  .brand-meta { display: flex; flex-direction: column; }
+  .brand-title {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 12px; font-weight: 500; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--gold);
+  }
+  .brand-sub {
+    font-size: 10px; color: var(--muted); margin-top: 3px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* Price visibility toggle */
+  .price-toggle {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--black-soft);
+    border: 1px solid var(--line-gold);
+    border-radius: 999px;
+    padding: 6px 14px 6px 16px;
+  }
+  .price-toggle-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .price-toggle .switch {
+    position: relative;
+    width: 44px; height: 22px;
+    background: var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .2s;
+    flex-shrink: 0;
+  }
+  .price-toggle .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: all .25s ease;
+  }
+  .price-toggle.on .switch { background: var(--gold); }
+  .price-toggle.on .switch::after {
+    left: 24px; background: var(--black);
+  }
+  .price-toggle.on .price-toggle-label { color: var(--gold); }
+  .price-toggle .state-text {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--muted); min-width: 30px;
+  }
+  .price-toggle.on .state-text { color: var(--gold); }
+
+  .btn {
+    border: none; cursor: pointer; padding: 9px 16px; border-radius: 4px;
+    font-weight: 600; font-size: 11px; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: all .2s ease;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--gold); color: var(--black);
+  }
+  .btn-primary:hover { background: var(--gold-light); }
+  .btn-ghost {
+    background: transparent; color: var(--gold);
+    border: 1px solid var(--line-gold);
+  }
+  .btn-ghost:hover { border-color: var(--gold); background: rgba(201,165,92,0.06); }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 28px 80px; }
+
+  /* Status banner for hidden prices */
+  .price-status-banner {
+    background: rgba(201, 165, 92, 0.06);
+    border: 1px solid var(--line-gold);
+    color: var(--gold); padding: 14px 20px; border-radius: 4px;
+    margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+    font-size: 13px;
+  }
+  .price-status-banner.hidden-state {
+    background: rgba(217, 83, 79, 0.08);
+    border-color: rgba(217, 83, 79, 0.3);
+    color: #ffaaa6;
+  }
+  .price-status-banner .icon { font-size: 18px; }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
+  .toolbar-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search {
+    background: var(--black-soft);
+    border: 1px solid var(--line-gold);
+    border-radius: 999px; padding: 9px 16px;
+    font-size: 13px; min-width: 260px;
+    font-family: inherit; color: var(--ink);
+  }
+  .search::placeholder { color: var(--muted); }
+  .search:focus { outline: 1px solid var(--gold); border-color: var(--gold); }
+
+  .filter-tabs {
+    display: flex; gap: 4px;
+    background: var(--black-soft);
+    padding: 4px; border-radius: 999px;
+    border: 1px solid var(--line-gold);
+  }
+  .filter-tab {
+    padding: 7px 16px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer; color: var(--muted); transition: all .2s;
+    border: none; background: transparent; font-family: inherit;
+  }
+  .filter-tab.active { background: var(--gold); color: var(--black); }
+  .filter-tab:not(.active):hover { color: var(--gold); }
+  .stats { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+  .stats strong { color: var(--gold); font-weight: 700; font-size: 13px; }
+
+  .category { margin-bottom: 36px; }
+  .category-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--line-gold);
+  }
+  .category-title {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 22px; font-weight: 500; letter-spacing: 3px;
+    color: var(--gold); text-transform: uppercase;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .category-title::before {
+    content: ""; width: 4px; height: 20px;
+    background: linear-gradient(180deg, var(--gold-light), var(--gold-dark));
+    border-radius: 1px;
+  }
+  .category-count {
+    color: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: 2px;
+    padding: 3px 12px; border-radius: 999px;
+    border: 1px solid var(--gold);
+    text-transform: uppercase;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .card {
+    background: linear-gradient(180deg, var(--black-card) 0%, var(--black) 100%);
+    border-radius: 4px; padding: 16px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--line-gold);
+    transition: all .2s ease;
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(201, 165, 92, 0.5);
+  }
+  .card-img-wrap {
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    background: #fff; border-radius: 2px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line);
+  }
+  .card-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .card-img-placeholder {
+    color: #888; font-size: 11px; font-weight: 600;
+    text-align: center; padding: 16px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .img-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.85));
+    opacity: 0; transition: opacity .15s;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 8px; gap: 6px;
+  }
+  .card-img-wrap:hover .img-overlay { opacity: 1; }
+  .img-btn {
+    background: var(--gold); color: var(--black);
+    border: none; border-radius: 3px;
+    padding: 5px 10px; font-size: 10px; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: all .15s;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .img-btn:hover { background: var(--gold-light); }
+  .img-btn.danger { background: var(--danger); color: #fff; }
+  .img-btn.danger:hover { background: #b73d39; }
+
+  .card-name {
+    width: 100%; border: none; background: transparent;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 500; font-size: 14px; line-height: 1.35;
+    color: var(--ink); padding: 6px 8px; border-radius: 3px;
+    resize: none; min-height: 40px; transition: background .15s;
+    letter-spacing: 0.3px;
+  }
+  .card-name:hover { background: rgba(201, 165, 92, 0.04); }
+  .card-name:focus {
+    outline: 1px solid var(--gold);
+    background: rgba(201, 165, 92, 0.06);
+  }
+
+  .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .price-block {
+    background: rgba(201, 165, 92, 0.04);
+    border-radius: 3px; padding: 8px 10px;
+    border: 1px solid var(--line-gold);
+  }
+  .price-label {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px;
+  }
+  .price-input-wrap { display: flex; align-items: center; gap: 4px; }
+  .euro { color: var(--gold); font-weight: 700; font-size: 14px; font-family: "Cormorant Garamond", serif; }
+  .price-input {
+    border: none; background: transparent; font-family: "Cormorant Garamond", serif;
+    font-weight: 600; font-size: 17px; color: var(--ink); width: 100%; padding: 2px 0;
+  }
+  .price-input:focus { outline: none; }
+  .price-block:focus-within {
+    border-color: var(--gold);
+    background: rgba(201, 165, 92, 0.08);
+  }
+
+  .card-actions { display: flex; gap: 6px; margin-top: 2px; align-items: center; }
+  .card-cat-pill {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2px; padding: 3px 10px; border-radius: 2px;
+    display: inline-block; margin-right: auto;
+  }
+  .pill-new { background: var(--gold); color: var(--black); }
+  .pill-ready { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+
+  .btn-icon {
+    background: transparent; border: 1px solid var(--line-gold);
+    color: var(--muted); padding: 5px 10px; border-radius: 3px;
+    cursor: pointer; font-size: 10px; font-weight: 700;
+    transition: all .15s; font-family: inherit;
+    text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  .btn-icon:hover { border-color: var(--danger); color: var(--danger); }
+
+  .add-card {
+    background: transparent;
+    border: 2px dashed var(--line-gold);
+    border-radius: 4px; padding: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 360px; cursor: pointer;
+    color: var(--muted); font-weight: 600; font-size: 13px;
+    transition: all .2s; font-family: inherit;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .add-card:hover { border-color: var(--gold); color: var(--gold); }
+  .add-card .plus {
+    font-size: 36px; font-weight: 300; margin-bottom: 6px; line-height: 1;
+    font-family: "Cormorant Garamond", serif;
+  }
+
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.85); backdrop-filter: blur(6px);
+    z-index: 100; display: none;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--black-card); border-radius: 6px; padding: 32px;
+    max-width: 460px; width: 100%;
+    box-shadow: 0 30px 60px rgba(0,0,0,.7);
+    border: 1px solid var(--line-gold);
+  }
+  .modal h3 {
+    margin: 0 0 8px;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    color: var(--gold); font-size: 22px; font-weight: 500;
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .modal p { margin: 0 0 18px; color: var(--muted); font-size: 13px; letter-spacing: 0.5px; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label {
+    display: block; font-size: 10px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;
+  }
+  .modal-field input, .modal-field select {
+    width: 100%; border: 1px solid var(--line-gold);
+    border-radius: 3px; padding: 10px 14px;
+    font-family: inherit; font-size: 14px;
+    color: var(--ink); background: var(--black);
+  }
+  .modal-field input:focus, .modal-field select:focus {
+    outline: 1px solid var(--gold); border-color: var(--gold);
+  }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .btn-secondary {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--line-gold);
+  }
+  .btn-secondary:hover { color: var(--ink); border-color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(40px);
+    background: var(--gold); color: var(--black);
+    padding: 12px 24px; border-radius: 999px;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
+    opacity: 0; transition: all .3s; z-index: 200; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); color: #fff; }
+  .toast.danger { background: var(--danger); color: #fff; }
+
+  .footer-note {
+    text-align: center; color: var(--muted); font-size: 11px;
+    margin-top: 40px; padding-top: 20px;
+    border-top: 1px solid var(--line-gold);
+    letter-spacing: 1px;
+  }
+
+  .warn-banner {
+    background: rgba(217, 83, 79, 0.1);
+    border: 1px solid rgba(217, 83, 79, 0.3);
+    color: #ffaaa6;
+    padding: 12px 16px; border-radius: 4px;
+    margin-bottom: 18px; font-size: 13px; display: none;
+  }
+  .warn-banner.show { display: block; }
+
+  @media (max-width: 700px) {
+    header.topbar { padding: 14px 16px; flex-direction: column; align-items: flex-start; }
+    .topbar-actions { width: 100%; }
+    .container { padding: 16px; }
+    .search { min-width: 0; width: 100%; }
+    .toolbar-left { width: 100%; }
+    .filter-tabs { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <img src="data:image/jpeg;base64,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" alt="Baronesha">
+  <div class="spinner"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCADIAI4DASIAAhEBAxEB/8QAHgABAAIDAQEBAQEAAAAAAAAAAAYIBQcJBAMKAgH/xAA/EAABAwQBAgMFBAcIAQUAAAABAgMEAAUGEQcSIQgxQQkTIlFhFDJxgRVCUnKRocIWIzNigrHB0iSSk6Oy0f/EABwBAQACAwEBAQAAAAAAAAAAAAAFBgMEBwIBCP/EADsRAAEDAgMFBwIDBQkAAAAAAAEAAgMEEQUSITFBUWFxBhMUgZGhsdHwIjLBUmKywuEVIyQ0QkOCovH/2gAMAwEAAhEDEQA/AOVVKUoiUpSiJUv404jy7l+9/orErJIu8lOi6psBLTKT+s44rSUD8T39N1N/Dp4crjzbevfyVuW3F4rgTKnJT8bivP3TW+xVrzPkkHZ2dA9TuJsIsfHuPxLJj1tZtdtYHZpod1q9VrUe61H1UdmqdjPaGPDrwwjNJ7Dr9FPUOFPqh3smjPc9PqqicfeyivNyjsyMvziFa1KG1Q7REVKUPoXFlCd/gCK27bPZM8ZFA+1Zblb6/UtKjNj+Hulf71ca2p/uUVmoidVz9vaDE6h93S25AAfopo4fSxjRqqdO9m5gELia64NbMgyCJHn3SPdnJ76mX3feMtOtoR0hCR0aeWSPPeu9VW5F9lpmVgQ49imU2rI207IjzG1QXyPkCStBP4qFdYJo7Goxdmtg16dj+IUbi5kl7m5uAb/r7r6MPp5hZzfRcF+ROJsv4ouggZZYJllkK/wy+jbbv1Q4NpX/AKSaiVduuTMRtGaWOVZ77bo90tkgEORpKOpO/RQ9UqHooaI9DXLvxMeGmVwxdP0naVOz8TlO9LTq+7kRZ8mnD6779K/XWjo+d7wXtJHiREM4yybuB6cDy91DV2Evpm97GczfcLRNKUq6KvpSlKIlKUoiUpSiJX9sKQh5CnUFxsHakBXSSPlv0r+KURXI408a2KYnEttkGHyLXa4yUsoXDkoKED9ZRQob89k/ESfmTVjcB8c3D1yU2iVkUiyuH9W5QHUgf6kBaf51yqpvVVGo7L0E5LvxNJ4G/wA3U8zGqpoDTYjp9LLvfjnMeA3ZTceHm2OvySEn7OLowl0bAIBQpQUDojsRutkwSl1tDrZC21d0rQdpP4EdjX52cfbhTL9Bbur62YDr6RJeSNqSgn4jXcbwo8d4ThfHEKRhdrciwZjYInOurc+2oH3XEkn7p9Dob8++91TsRwKLCQ1zZC6/LT1v+ikqaudVkgtAtzW55g7EVHLknsfwqSzR2rW/KHJGMcWY89essvcSx25AOnJK9KdI/VbQPicV9EgmqlWRukcGMFydwUtE4NF3GwUfyVv71aY5Dx6BlFluFoucdMqBMaUy80r1SfUH0IOiD6EA1o/LPab2mRerq1bMJkS7U3oQpEicGXnzsAlaAhQQNbIAJPYb8+2trp7QSbcy4E4VFjgpV0kz1uEK12JHQNjetjtU1TdncWbZ4itsO0fVexi1CBlc+/kfoq58p8ezOMc0n2OUS4htXXGka0H2T9xf/BHoQRUSrYPKXNF15bEZV4t9uYeirJYehtqQpKD95BJUeoE6P0I+prX1dnpDP3LfEiz99vlc/qRCJXdwfw7kpSlba1kpSlESlKURKUpREpSlEWzPDXiVgzfnHELVlVyg2rHFzUvXB+5SEMMqZbBcU2VLIAK+noHf9auwWWeM/hbjuOlp7N7bc5Q02zbMd/8APeUewS2lLW0p9AAVAeVcOIMGRc5seJEYckypDiWmmWklS3FqOkpSB3JJIAH1q+GCeyUzK92KDNyHNbZjVyd6Vu21qI5KXHB79KlhSU9Y9QNjf61VLGaWjlmjlrJi0AWAHud/JS1HLMxrmwsueK6fWy6fp6y264qhTbZ9sYQ8qHcWSzJj9QBKHUd+lad6I79x61xE8a7Weq56v8/O4siG7PfdetbDzqFpRBS4ptkJShSko+FA2nsd7JGzXabBsIY43wCwYtGmSbixaITcRMyYrbz/AEjutZ/aJ2apv4nvZ3xOa+UZOZWXKWcZcuSQq5RXoJfSp5KQn3rfSpPdQA6gfXZ331VRwuvpsOrXvndZpBANifjZfoVL1UEtTCAwXPC65T0rbfiN8NuReHDKY1tu8hi526chTsC6RQUtvhJAWkpPdC07G0nfZQIJBrUldTgniqomzQuu07CqtJG6JxY8WISlKVsLGlKUoiUpSiJSlKIlKUoiUpSiLfXgQt8a5+LbjhmU0l5pM5x9KVDY622HXEH8lJSfyruLD8hXKb2U/GLl65Tv+byYnXBscAxIz609hLfIHwn5hpLm/kFj511YiHvXKO0c7ZMSDG/6WgHrqfghWvDWFtPmO8r7Tfu1G7j5GpHNPao5cfI1Sq9TcC5t+1QymKuVguOIIVNaTJuLo9UNr6G0fxLa/wD01QOrp+1IsZi8s4pdt/BMspY/Np9e/wCTgqlldm7NMazCocu8E+dzdU3E3F1W+/L4CUpSrMotKUpREpSlESlKURKUpREpSlEXVD2anMeDReDU4nIvFssuR2+4SH5UedIbjrlJcIUh5JUR16SAg67joG+xFXptklqUw0+w6h5lxIWhxtQUlaSNggjsQR6ivzsY1ahfchtltU99nTMlNRi70FfQFrCerpHc63vQ89V+hvG7Oxjlnt9pijUW3x24bXbXwNoCE/ySK5Nj+Hx0dUJmuJMhJtw2b/PyVsw+odNFkI/LYLKzD2qM3mSzDjOvvutsMNpKluurCEJHqST2A+pqSTD2rQfjBwdjkLw6Z5andhxq2uXBhQOtOxx75P5HoKT9FGqlOxs0zI3mwJAJ22udqmGOLGFwFyAud3tFeYsd5P5Msluxq4sXeHYYbjL86KrrZW+451KShQ7KCQlAJHbZOidVUyh86V3ego2UFMymjNw0f1+VQ55nVErpXbSlKUrfWulKUoiUpSiJSlKIlKUoiUpSiLYnh0tDl95945gtDqU7kMAEEegfQT/IGu+cZfUsqHqSa4e+BmCLh4sOOGlJ6gi4Kf8A/bZcX/TXb6CdBP4Vy3tXJ/jYmcG39SforThLf7lzua9cs9jUMzOzoyPHbtaXP8O4Q34avwcbUj+qphMV8NRye90uJPoFA/zqg1jiDcbVYIRfQr8906I5Amvxnk9LzK1NLHyUk6P8xXwqXcv2/wDRPLGaQenpEa9TWgPoH1gVEa/RkT+8Y1/EArnDhlcW8EpSlZF5SlKURKUpREpSlESlKURKUpRFZf2dFtM/xYYq7rYiR50g/TUVxP8AuoV2YiK1quRnsvohe8R8t/XwxrBLXv5FS2kf1V1mjP8A1rkHad2bFAODR8kq44W21LfiT+iyE97sai10e+FR+lZqe/2Peoxc3tpV386p9WFNwhcW/FfbxbPEfyKykaBvL7oH756/6q1PW9fHBCMPxP5qdaD7kd8f6ozR/wB91oqu/Ya7PRQu4tb8Bc9qhlnkHM/KUpSpFaqUpSiJSlKIlKUoiUpSiJSlKIrteywhBXKWZTdf4FjS0D+/Jb/6V03jSPLvXOT2WNtUiVyLcyPg93BipP1KnVn/AOoroTGkfWuMY+c+LScsvwFesNbajaevysnNf2D3qN3F7se9ZSa/2NR2e92Peq7VBS0IXLL2gsQR/EVNdA19ptsN38dNlH9FVsq1vtGoYb5ksksD/HsjaSf3XnR/yKqlXbsEdmw2A/ugemi5/iDctXIOaUpSptR6UpSiJSlKIlK990sM+ytxFzYyo6JbQfYKiPjQfIjVeCvgIIuFkfG+J2SQEHgdEpSlfVjSlKURdI/ZnW8w+IclnKT0mXe/dg/NLbCP+XDVy4z/ANaqx4BYyIPhwtLieypVwmPK/H3gR/sgVZeM/wB64diLu8xOd37xHpp+i6PRsy0kY5fOqykx/sawE97sa98t/tWBnO7BqOqWreiC58+0eSDneIueptjqT+T6v/2qg1cT2jUVQyPCpej0LhyWd69UuJV/XVO67D2fN8Mh6H5K5/iotWSeXwEpSlWFRSUpSiJSlKIrdpttpzR+FYbfabNBgZFh0/K7tIkR0Jbt7wYX7oNOEFTDLLzBWEIIGn1p0rYFVcyGzw7aWHbfPVcIb/WEOuMFlRKVaPwknsfMHf4gEEVYTJouLYlh91YjZHkjwlW1FpLb9rcZUYaHg+GUuLiJ6QXEjffv5HtVbLhMMx4HuGm0+7aQf1UDyHb8ST8ySahaEOL3OaSG8xt26679g6D0kKgjKM2p6/f2V5qUpU0o9KUpRF1L8ETEi3+HDGUSWlMFbsp5vr/XbU+opUPoe/8ACrCRXfKuNeE8659xzaF2rG8quNpty1lz7Mw4OhKj5lIIPST661U5jeNzmeMABmKl69XLfGUT/wDHXOqjs3VSVMk7Xts4k795vwKt8GMQRwsjc03AA3fVdYpKyU+dYaZ5GubcD2hvLUOO20+5ZLipCekuSbaApZ/aPQpI3+AA7eVRDNfGJyrm/wBmS/kirW3HdDyEWhlMX4xvRKk/EdbPYnX0rUk7M1krrEtA43P0WwMap2C4BP31VgfaHXC3DFcZgvtSE3RUxyRFeDO2lNBPS6gr32VstHWvKqKVmsqza/5xcFTb/eJt4lE795MfU4R2A7bOh2A8vlWFq9YXRHD6VtO51yL+/BVeuqRVzmUCwSlKVLLQSlKURKUpRFtfCvFHyXh13alf2tul6iBQ9/brxLclR30eqVJcJ1seo0R6VsLxm8bWewTLBllngItKL60HH4baAhPUptLiVBI7A6VpWuxIB9TXw8Plv8OD+U205zdMpQ6hxJCLjHZatji9jQeU0pbgRvz3oa8zrdZzx9wc4fzmHcb63bf7LDqatKrO4pbKQQD/AHhUAetQAO9dOkjp8jVRe9gxaFsTcmhuSLB2mgH7RG3kp6PMaGXvDm2W35ddSeHDmqxwsaulxsdyvMaC89a7atpuXKQnaGFOlQbCj6dRSrX4V57bbX7vMbixg2XnDpIddQ2Cf3lED+dX38MULEm8Pn+HS+R47V8z3GV3mVcXDtyNclgOwo+j5e7jpQ9rzClqFULvlmmY7ep9quDJjz4L7kaQyrzQ4hRSpJ/Ag1OU9Z4h8kYFiNRzadh9QfKyi5Ie7a1x1B29eHpZbFT4YeTVSWI39mFiW+NsxVTIwedH+RsudSvyFQDJcXu+G3mRab7bJVoucc6diTGVNOI/FJ9Pr61arxi8V5VlPMmIsYtj1zujjuNW9KHYUZakBzbhO3NdKddiSSNeZ1WS8bD9mzbMeHsNbvEO95tBtke25Fc4LqXkh9Xuk9KnB2UoKDqvp1d/OoqlxSSQQOksQ8Em1/w2F7nU6bt2q3ZqNjXSNZe7SAL77m3AaqrOIcXZTnkaRJsdmfmQoxCXpiilqO0o+SVOrKUA/Qndfzl3GWT4G9ERfrPItyJfePIc6Sw9+46klCteuldvWtv+Jhq4XPkmx8WYrAkPW2yx48W32WC2Vl6S62Frc6B99xXWAVHv8P416PC809lLuZ8U5Gy6q1zIL0lMOSCFQprKgCtCT9xeioH90brZOISClFaQMtg62/Kd977ba2tyvvXkUjDP4YE5r2vuvw9dNvO25aavnF2U47jcXIJ1neRY5Suhq4tKS9HUr0HWgkA9j2PyNRlllch5DTaepxaglKR6knQq6nhs5MxfjHi2BiPJEBm54HlGQ3WyXdxYPVD6GohbeQR5JStaiddx2UO6dHSHPXh/uHh95di2db5uePzXkSrLeEgFE2KVjpOx2607AUB66I7KBOSmr3PkdFMADrlO5wH6jeOGqxS07WgOjvbS/IlQrF+G8wzS5TbfZLObhPhKWmTGbkMhxrpV0qKklYIAI1vyr3p4CzZxaEN26E64sgIQ1d4S1KPoAA9smrF+Cu2Iufiq5HYW370i3XbpQBslXvkgD+JqucngHkuBGflP4LkDDEdBdddXbnAltKRsqJ12AAJrFHXySTvic5rbBpFx+1f94bLLJJTxsY1waTqQdeB6KNW/B79dsocxyFapMu9turYXCZR1rStBIXvXYAaOzvQ151lsk4fy/EorEq6WZyPBecDSZqHm3YwX+yp5CihJ+iiDW2fC/bLdy7d86xG6ZCzjuSZZFS3BuL/wpcd951raJ9es9O0juob1sjRwOW8ccg+Fy632zZVaX2bRe4L9uW/GV72DMJSfdrQv7pUhYSrR0saPYbrJ415ndT3Ae22hv+IEakG/Ub9mq8+HjEbZNSDfXhroD8+a1nlXH+QYTHtsi9W1yFHuTZehvFaFofQNbKVJJB8x/EV88Ywa+5m1c3LLbnJ6LZGMyWW1JHuWR5rOyO34VZvmLivJs28OfBD2M47cr6WrZKVKVb4yng11Frp6ukdt6OvwNfbwx8R5Xh+L8vS8lxm6WWO5icgMPT4q2krWDvpSVDudAmtb+1rURnJbnBIt0fl2Xvs1WXwQNSIxfKQDf/jfbbiqg17l2K4N2Rq8KiOptbshUVEoj4FOpSlSkA/MBST+deWPHclyGmGW1OvOKCENoGypR7AAfU1dPi1vD79bp3Et0hxZaMXU1JLxX2kSilSZSt/5XVlA+gFbuI1/gGB4bm3m24bL+pH2FhoqPxjyzNY7uvD0BVO8exm7ZXdWbbZrdJuc95QQiPFaK1En6DyH1PYVdjlKPBtmCYJhOWSEynLZEiybsltXUpMWIjqeIP8Am0GUk+ZUNVpt7xS3KSwtleaZ8hDg0v3EuK0VD8UoBqDPZZhsxdxclTM0ku3FIRLdelx1rfSFBQClKSSRtIPn6CoyrhqK6Rjntyhmotqb8b6Wt01UhTSQ0jHhrsxcLa6C3TXapHmni8zrMeTrXlapDVti2m4NTrfZoSEtRmQ2oFKVaALhKR0qWrZOz5DQEk8dVms915Jt/I+MAKx3N4LVzSUeTcnpAeQfkryJH7RV8q1QlfGH6zGW/k/F/wClZ6NmuCRsedsQlZubM6v3ioKpMRbQV+0lKkEJV9Ro1sdw2GWKSmjLcgLSLbWm3uCAfXitMOzte2Z4N9Qb7D96KxXOniJu/C/iXwW/QXXp1lbxmC1cbKt0+4mMKLgdQUE9PUQAQrXYpT6VqnxGcd2TiPk/HeQ8AWLhxxfnWrzaFNjQjHqCnIiv2SkggA+Q7eaTUPynNeP84nszr/Kzq6S2WExm3X5MMqS2nfSkfB5DZ/jWRtXKOE2fGl49GuOfIsall029cmCtnqPmQhTZA8t9vXvWnT0slNHE1jDcDK4W0cPqNxtxC2ZJWSyPcXaXu3iCsv4nG5zOc2PlfFJklNovcaO9EvMFxSDHltIDamytPdtwBKTo6Pc/I1/vhleewv8AtbyrkTjqLXGgvRGJMkkruE55QPu2yfvq0FFRG9dQJrE4fylhOBIkt2G6ch21iT3fjNTIRZdPzU2pspUfqRXxy7kXAM+ksv5FceRLsplPQyiRNhlDI+SEdHSgfQAVmFPIaUUTmnJa17a5Rutxtpe/O25ee+YJ/EgjNe9t1+Prra3K6w+UXRVy4Axx1wj7Q5lV2fWB81R4Z/33W1uGeY7ZyzxWxw5nq+qTbnkysTvSwC5FcSd/ZiT6EbCR6glPojWsHL9xQ9Z2LU5/b1VuYeXJajmVC6EOLCUrUP7vzIQgf6RXkbk8OsuJcaYzttxBCkrTKhAgjyIPRWxLTNmgMZaQQS5pA1BuSPmxG8XCwRy93KH3BFgCOOmq3z4Lri1C8UnI7jx6Uu2y7J/MvCqd+/fWekOLUVdtBRO63ZjPJuB4XkMq+2O48hW27ygtL0xmXCDjgUoKVs+79SAazyvETj5UFi9Z4lwHYWn9GJUD8wQxvdY4mTU8z5Wx3zBo4flB5HivchimY1pdaxJ47T1C1Sniq7N2m+PNtOuXeypiyJUJlJLjLLqVFSlJ1vaD7vq193q7+RqwvAHiKyPkHCMn475A1lGGtWh6SbjcE9b0D3aR0dTx+8N9klW1BWuk62K1EnNOPGsidv7U7kJi9OOqeXPZnxEPFajsnqSgHvWWynmPFsytItl2vXIUy3hQWqKuXDS2tQ8lLSlsBZHzVs14qopKuPu5WX2EG1i06ajz1Go5r3C+KB4ex2zdfR3Xy27Vn/EZc/e+Hbw/tNuFK2bZMSoJVr1Z1Twf3T7Nj/M4dcUouYe+hIKie5VUEvebYLkNotNrnys3mW+0oU1BjvSYhTHSrWwn4PXQ/hXzxfOMNwiXIk2CZmtsekMmO8pmTFHvGyQSlQ6NEbArwaZ/gXUuU3JJ2cX5v6L6JGeJE2YWAA/62Xh4PbiWO9zs3ucdMu3YqymaiOo6TImKV0RWifq58Z/ytKrB5PyxlGW3ty6TbotD6uoJbipDLTSSdlKEJAAHYfU67k1I38pwSXbpEB5zLvsMiQmW7HadhoQt1KSlKykIA2ApQH4n51jSvi70Yy783on/AEqRbYyumliJOwaXsOHrf24LWN2xiOOQAbTrtP8A5ZQCp5xytiPYsmkPSGYSmkRuiU9DTJ92S7o6SQfMdt0pW9VDNFbiW/xBa9Kcsl+R+CvVisi1X7myzLhxG02x6cwgtOMJShz4QFqLXdKQpQUro7gb1X05F+xOYVY5bb7F4kypT5F0jW9EMNoQEgx1pSB1K2Ur2R2ChonZ0pWk5mWpYAdgA9n+e7z3raa/NTvJG0k+7fqpA5eGse4ixJcSfHhXKVAlK+yGxMSTMP2t1van1AqQQnsOx10jWt9vX4dIFquuK5zbbrFiuN3dUCztTH2ELXCckKeS28hRG0adS11EEbT1A0pWtKzLSyOG0u/n+9q+ZrytB3N/lXr53sMHFOKMRxxmBEYueP3abarnKaaR756YmPFekJW4BtYbdfcaTskANnXnUN5Uhx43HnEjrMdll2Rj8hx5xtpKVOqFyloClkDaiEpSnZ2dJA9KUr3SOLooHHaXEnzDisMoAc8cAPkLY1yssQcnZCpNtjCGONUTUaioDQcNmZPvh8OgouknrHfrPnuo54erfbbtiWcWu5RIrou64FoZlvspWuG8+p8NOoURtH96loKII2kqBpSvIJNOejPlZrDvR1cvtztZoONcYYbYI8GLHn2G5T7TcZTTSPevy0MRHZAW4BtYbdfdbTskAI7edaIB0d0pUhQEmnBO+59SVqVAtIQPvRWK8WN+iWzML7jtquUMxky0tu2djHY0QQ0pQhSQiQlPWv4iQfLfrvdea3RkRMnwHEotlgScUvNqhyJzi4ba3JXvWyqXIL5T1pLKveAdKgEe58vvbUqHyiOjitvaT55b30tqNx2+a3mHNO7qB5X2LW+DsswrNll1isszrnbmGlRPfspdDaFPBLj4bUCCUjpHcHXXvzAI+Getoet2NXR2O1DulwhLelNsNBpK9PLS270AAJK0p9AAenfrSlSY/wAx528smzpfXqsP+x5e+bb1tp0UuywJuGRZpbJEKIm2W+Gp9hxuI20qM4kI6NLSkH4lHp0Sd9XzFafPnSlfaD8nk3+EL7Xfn83fJX//2Q==" alt="Baronesha" class="brand-logo">
+    <div class="brand-meta">
+      <div class="brand-title">Admin · Catalog Editor</div>
+      <div class="brand-sub">Week 20 · Wholesale</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <div class="price-toggle on" id="priceToggle" title="Kliko për të ndryshuar statusin e çmimeve te klientët">
+      <span class="price-toggle-label">Çmimet</span>
+      <div class="switch"></div>
+      <span class="state-text" id="priceToggleState">ON</span>
+    </div>
+    <button class="btn btn-ghost" id="btnImport">↥ Import</button>
+    <button class="btn btn-ghost" id="btnExportCsv">⬇ CSV</button>
+    <button class="btn btn-primary" id="btnExportJson">⬇ Export JSON</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+    <input type="file" id="imgInput" accept="image/*" style="display:none">
+  </div>
+</header>
+
+<div class="container">
+  <div class="warn-banner" id="warnBanner">
+    ⚠ Skedari <code>epic_images.js</code> nuk u gjet. Fotot e produkteve nuk do të shfaqen.
+  </div>
+
+  <div class="price-status-banner" id="priceStatusBanner">
+    <span class="icon">👁</span>
+    <span id="priceStatusText">Çmimet janë <strong>TË DUKSHME</strong> për klientët në katalogun online.</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" id="search" class="search" placeholder="Kërko produkt...">
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">Të gjitha</button>
+        <button class="filter-tab" data-filter="new">New Arrivals</button>
+        <button class="filter-tab" data-filter="ready">Ready Stock</button>
+      </div>
+    </div>
+    <div class="stats">Gjithsej: <strong id="totalCount">0</strong> produkte</div>
+  </div>
+  <div id="categoriesContainer"></div>
+  <div class="footer-note">
+    Ndryshimet ruhen automatikisht në browser. Përdor "Export JSON" për të shkarkuar të dhënat dhe ngarkuar online.
+  </div>
+</div>
+
+<div class="modal-bg" id="modalAdd">
+  <div class="modal">
+    <h3>Produkt i Ri</h3>
+    <p>Plotëso të dhënat e produktit të ri.</p>
+    <div class="modal-field">
+      <label>Kategoria</label>
+      <select id="newCat">
+        <option value="new">New Arrivals</option>
+        <option value="ready">Ready Stock</option>
+      </select>
+    </div>
+    <div class="modal-field"><label>Emri i produktit</label><input type="text" id="newName" placeholder="P.sh. OREO MILK CHOCOLATE 12 X 100G"></div>
+    <div class="modal-field"><label>Çmimi për kasë (€)</label><input type="number" id="newCase" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="modal-field"><label>Çmimi për palet (€)</label><input type="number" id="newPallet" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelAdd">Anulo</button>
+      <button class="btn btn-primary" id="confirmAdd">Shto Produktin</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="epic_images.js" onerror="document.getElementById('warnBanner').classList.add('show')"></script>
+
+<script>
+const DEFAULT_PRODUCTS = [
+  {cat:"new", name:"OREO CAKE CHOCO 24 X (6 X 24G)", caseP:1.15, palletP:1.04},
+  {cat:"new", name:"OREO WAFER CHOCO VANILLA 24 X 117G", caseP:0.88, palletP:0.8},
+  {cat:"new", name:"OREO WAFER ROLL CHOCOLATE 20 X 54G", caseP:0.74, palletP:0.67},
+  {cat:"new", name:"OREO WAFER DOUBLE CHOCO 24 X 117G", caseP:0.88, palletP:0.8},
+  {cat:"new", name:"MILKA CHOCO STICKS 20 X 112G", caseP:1.15, palletP:1.04},
+  {cat:"new", name:"MILKA TENDER COW 16 X 140G", caseP:1.55, palletP:1.41},
+  {cat:"new", name:"JOUYCO CRAVINGZ CROISSANTS CHOCOLATE & HAZELNUT 12 X 5 PACK", caseP:1.2, palletP:1.09},
+  {cat:"new", name:"JOUYCO CHOCOMALLOW CAKE 18 X 150G", caseP:1.06, palletP:0.96},
+  {cat:"new", name:"JOUYCO SPONGIEZ GOLDEN 21 X (5 X 40G)", caseP:1.06, palletP:0.96},
+  {cat:"new", name:"HERSHEY COOKIES N CREME 36 X 43G", caseP:0.7, palletP:0.63},
+  {cat:"new", name:"REESE'S OVERLOAD 18 X 42G", caseP:0.88, palletP:0.8},
+  {cat:"new", name:"REESE'S PEANUT BUTTER WHITE BAR 16 X 90G", caseP:0.54, palletP:0.49},
+  {cat:"new", name:"REESE'S STICKS 20 X 42G", caseP:0.79, palletP:0.73},
+  {cat:"new", name:"REESE'S 2 PEANUT BUTTER CUPS 24 X 39.5G", caseP:0.7, palletP:0.63},
+  {cat:"new", name:"REESE'S 2 PEANUT BUTTER CUPS WHITE 24 X 39.5G", caseP:0.7, palletP:0.63},
+  {cat:"new", name:"REESE'S PIECES POUCH 10 X 90G", caseP:1.89, palletP:1.72},
+  {cat:"new", name:"REESE'S PEANUT BUTTER BIG CUP CHOCO LAVA 16 X 79G", caseP:1.28, palletP:1.16},
+  {cat:"new", name:"REESE'S PEANUT BUTTER BIG CUP STRAWBERRY 16 X 79G", caseP:1.28, palletP:1.16},
+  {cat:"new", name:"REESE'S DIPPED PEANUTS 10 X 90G", caseP:1.89, palletP:1.72},
+  {cat:"new", name:"REESE'S NUTRAGEOUS 18 X 47G", caseP:0.79, palletP:0.72},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS PASSION FRUIT 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS GRAPE JUICE 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS GREEN APPLE 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS BLUE RASPBERRY 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS RAINBOW RUSH 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS FUZZY PEACH 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS RASPBERRY PUNCH 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"new", name:"BUBBLY BILLY LOLLYPOPS PINEAPPLE BLAST 100 X 17G", caseP:0.19, palletP:0.18},
+  {cat:"ready", name:"CORNCHITO ROASTED CORN 24 X 12 PACKS", caseP:0.17, palletP:0.15},
+  {cat:"ready", name:"CORNCHITO CHICKEN 24 X 12 PACKS", caseP:0.17, palletP:0.15},
+  {cat:"ready", name:"CORNCHITO CHEESE 24 X 12 PACKS", caseP:0.17, palletP:0.15},
+  {cat:"ready", name:"BUBS SKALLE SOUR RASPBERRY 12 X 90G", caseP:1.12, palletP:1.01},
+  {cat:"ready", name:"BUBS SKALLE SWEET & SALTY RASPBERRY LICORICE 16 X 90G", caseP:1.12, palletP:1.01},
+  {cat:"ready", name:"QLOVE PASSION FRUIT MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE EXOTIC COCONUT MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE INTENSE CHOCOLATE MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE CHOCO MINT COOKIE MOCHI 24 X 80G", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"QLOVE RED VELVET MOCHI 24 X 168G", caseP:1.87, palletP:1.7},
+  {cat:"ready", name:"QLOVE DUBAI MOCHI 24 X 168G", caseP:2.42, palletP:2.2},
+  {cat:"ready", name:"QLOVE DUBAI MOCHI 24 X 45G", caseP:1.4, palletP:1.26},
+  {cat:"ready", name:"AMOS 4D BUILDING BLOCKS JUICE FUDGE DISPLAY 8 X 45G", caseP:0.81, palletP:0.74},
+  {cat:"ready", name:"AMOS 4D MILO COLA LEMON 36 X 50G", caseP:0.54, palletP:0.49},
+  {cat:"ready", name:"AMOS 4D TINA GUMMY PEACH GRAPE 36 X 50G", caseP:0.54, palletP:0.49},
+  {cat:"ready", name:"NERDS ROPE RAINBOW 24 X 26G", caseP:1.04, palletP:0.95},
+  {cat:"ready", name:"PRINGLES BBQ STEAK 20 X 110G", caseP:2.1, palletP:1.91},
+  {cat:"ready", name:"PRINGLES HOT SPICY 20 X 110G", caseP:2.1, palletP:1.91},
+  {cat:"ready", name:"PRINGLES SOUR CREAM ONION 40 X 53G", caseP:1.32, palletP:1.2},
+  {cat:"ready", name:"PRINGLES TOMATO 20 X 110G", caseP:1.82, palletP:1.65},
+  {cat:"ready", name:"AMOS UNICORN AND FRIENDS FRUIT JUICE GUMMY 8 X 75G", caseP:1.75, palletP:1.59},
+  {cat:"ready", name:"BERGEN BUBBLE GUM COOKIES 18 X 128G", caseP:0.95, palletP:0.86},
+  {cat:"ready", name:"BAIWEI & DISNEY 3D GUMMY LITCHI & BLUEBERRY 40 X 70G", caseP:0.95, palletP:0.86},
+  {cat:"ready", name:"BAZOOKA SPLASHZ CHEWY BERRY BLAST 12 X 120G", caseP:1.66, palletP:1.51},
+  {cat:"ready", name:"BERGEN COOKIES BUBBLE GUM 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BERGEN COOKIES CANDY FLOSS 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BERGEN COOKIES JELLY CUBE BLACK CURRANT & MILK CREAM 18 X 128G", caseP:1.02, palletP:0.93},
+  {cat:"ready", name:"BERGEN COOKIES JELLY CUBE STRAWBERRY & PEANUT BUTTER 18 X 128G", caseP:1.02, palletP:0.93},
+  {cat:"ready", name:"BERGEN MATCHA COOKIES STRAWBERRY CREAM 36 X 96G", caseP:0.93, palletP:0.85},
+  {cat:"ready", name:"BERGEN MATCHA PRALINES STRAWBERRY CREAM 18 X 110G", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BERGEN OBSESSION PEANUT BUTTER COCOA COOKIES 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BERGEN OBSESSION PISTACHIO WHITE COOKIES 18 X 128G", caseP:0.94, palletP:0.85},
+  {cat:"ready", name:"BINQI CHOCOLATE BISCUIT STITCH 24 X 50G", caseP:0.83, palletP:0.75},
+  {cat:"ready", name:"BINQI MILK BISCUIT STITCH 24 X 50G", caseP:0.83, palletP:0.75},
+  {cat:"ready", name:"BOMBA ENERGY BLUE 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY CHERRY 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY CLASSIC 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY JUNGLE 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY MOJITO 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOMBA ENERGY PINK 12 X 250ML", caseP:0.91, palletP:0.83},
+  {cat:"ready", name:"BOURBON KIKORI STUMP 10 X 66G", caseP:2.3, palletP:2.09},
+  {cat:"ready", name:"BROWNIE BRUCE BANNER 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE CANNABIS GREEN EXTREME STRONG EFFECT 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE CANNABIS RED EXTREME STRONG EFFECT 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE GREEN GRANDADDY 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE LEMON HAZE 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE MOROCCAN HASH 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE OG KUSH 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE PURPLE HAZE 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE RASTAFARIAN CANNABIS EXTREME STRONG 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE RASTAFARIAN CANNABIS STRONG 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BROWNIE WHITE WIDOW 80G", caseP:2.4, palletP:2.18},
+  {cat:"ready", name:"BUBBLE TEA BLUE BUTTERFLY ICE TEA WITH BLUEBERRY BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BUBBLE TEA COCONUT ICE TEA WITH CHOCOLATE BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BUBBLE TEA MANGO ICE TEA WITH ENERGY DRINK BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"BUBBLE TEA PEACH ICE TEA WITH STRAWBERRY BOBA 12 X 350ML", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"CALYPSO APPLE OASIS 12 X 330ML", caseP:1.23, palletP:1.12},
+  {cat:"ready", name:"CALYPSO BERRY BLOOM 12 X 330ML", caseP:1.23, palletP:1.12},
+  {cat:"ready", name:"CALYPSO BLOOD ORANGE BREEZE 12 X 330ML", caseP:1.23, palletP:1.12},
+  {cat:"ready", name:"CARAMBAR LOLLYS 20 X 156G", caseP:1.75, palletP:1.59},
+  {cat:"ready", name:"CHEETOS AMERICAN TURKEY 12 X 25G", caseP:0.45, palletP:0.41},
+  {cat:"ready", name:"CHEETOS AMERICAN TURKEY 22 X 90G", caseP:1.27, palletP:1.15},
+  {cat:"ready", name:"CHEETOS CHEESE XL 14 X 130G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CHEETOS KETCHUP XL 14 X 150G", caseP:1.79, palletP:1.63},
+  {cat:"ready", name:"CHEETOS PAPRIKA 14 X 130G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CHEETOS PELOTAZOS FUTEBOLAS 30 X 130G", caseP:1.39, palletP:1.26},
+  {cat:"ready", name:"CHEETOS PIZZERINI XL 14 X 160G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CHEETOS SPICY SHRIMP ROLLS 30 X 40G", caseP:0.97, palletP:0.88},
+  {cat:"ready", name:"CHEETOS SPIRALS SER KETCHUP XL 14 X 130G", caseP:1.93, palletP:1.75},
+  {cat:"ready", name:"CINNAMON TOAST CRUNCH MINIS 12 X 349G", caseP:5.41, palletP:4.92},
+  {cat:"ready", name:"CINNAMON TOAST CRUNCH ROLLS 12 X 303G", caseP:5.41, palletP:4.92},
+  {cat:"ready", name:"COCA COLA CHERRY FLOAT 24 X 330ML", caseP:1.0, palletP:0.91},
+  {cat:"ready", name:"COCA COLA LEMON ZERO CHINA 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"COCA COLA PEACH 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"COCA COLA STRAWBERRY 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"COCA COLA VANILLA 12 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"COLA GAZA 24 X 250ML", caseP:0.5, palletP:0.45},
+  {cat:"ready", name:"COLA GAZA LIGHT 24 X 250ML", caseP:0.5, palletP:0.45},
+  {cat:"ready", name:"DELAFFE LEMON POPPING 50 X 230ML", caseP:1.16, palletP:1.05},
+  {cat:"ready", name:"DELAFFE MELON POPPING 50 X 230ML", caseP:1.16, palletP:1.05},
+  {cat:"ready", name:"DORITOS AVOCADO & CHEESE CHIPS 12 X 55G", caseP:1.83, palletP:1.67},
+  {cat:"ready", name:"DORITOS DINAMITA FLAMIN HOT 20 X 85G", caseP:1.36, palletP:1.24},
+  {cat:"ready", name:"DR PEPPER BLACKBERRY 12 X 355ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"DR PEPPER CREAM SODA 12 X 355ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"DR PEPPER STRAWBERRY & CREAM 12 X 355ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"FANTA BERRY USA 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA GRAPE 12 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"FANTA GRAPE USA 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA GREEN APPLE 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"FANTA JASMIN PEACH 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"FANTA LYCHEE 12 X 320ML", caseP:0.71, palletP:0.64},
+  {cat:"ready", name:"FANTA LYCHEE 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"FANTA PEACH 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA STRAWBERRY 12 X 355ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"FANTA WATERMELON 24 X 330ML", caseP:0.88, palletP:0.8},
+  {cat:"ready", name:"FRUIT SHAPED JELLY SOUR 24 X 280G", caseP:1.04, palletP:0.95},
+  {cat:"ready", name:"FUNNYCANDY CHICKEN N GUM 12 X 21G", caseP:0.38, palletP:0.34},
+  {cat:"ready", name:"FUNNYCANDY JACKPOT GUMBALL MACHINE 12 X 30G", caseP:0.83, palletP:0.76},
+  {cat:"ready", name:"FUNNYCANDY MINI SUGAR POPS 24 X 150G", caseP:1.88, palletP:1.7},
+  {cat:"ready", name:"FUNNYCANDY POP-LOLLY DINO 36 X 16G", caseP:0.33, palletP:0.3},
+  {cat:"ready", name:"FUNNYCANDY POP-LOLLY UNICORN 36 X 16G", caseP:0.33, palletP:0.3},
+  {cat:"ready", name:"FUNNYCANDY ROLLI GUM 30 X 15G", caseP:0.35, palletP:0.32},
+  {cat:"ready", name:"HALLS DROPS COLA 20 X 32.5G", caseP:0.6, palletP:0.55},
+  {cat:"ready", name:"HALLS DROPS HONEY LEMON 20 X 33.5G", caseP:0.6, palletP:0.55},
+  {cat:"ready", name:"HEFTY SFREEZER SLIDER QUART 15CT", caseP:1.67, palletP:1.52},
+  {cat:"ready", name:"HERRS CAROLINA REAPER CURLS 12 X 170G", caseP:3.0, palletP:2.73},
+  {cat:"ready", name:"HERRS CHEESE CURLS 12 X 170G", caseP:2.83, palletP:2.58},
+  {cat:"ready", name:"HERRS HONEY BBQ CHIPS 42 X 28.4G", caseP:0.67, palletP:0.61},
+  {cat:"ready", name:"HERRS HONEY CHEESE CURLS 42 X 28.4G", caseP:0.67, palletP:0.61},
+  {cat:"ready", name:"HERRS HOT 'N HONEY CURLS 12 X 113G", caseP:1.82, palletP:1.66},
+  {cat:"ready", name:"HERRS JALAPENO CHEESE CURLS 12 X 170G", caseP:3.0, palletP:2.73},
+  {cat:"ready", name:"HERRS JALAPENO CHEESE STIX 8 X 227G", caseP:3.38, palletP:3.07},
+  {cat:"ready", name:"HOT RAGE MANGO CINNAMON LIME CANDY 24 X 50G", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"JAWBREAKER BLACKCURRANT 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER BLUE RASPBERRY 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER COLA 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER FIREBALL 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER SOUR APPLE 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER STRAWBERRY 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER TROPICAL 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JAWBREAKER USA ASSORTED FLAVOURS HARD CANDY WITH BUBBLEGUM 16 X 99G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"JAWBREAKER WATERMELON 4-PACK 40CT", caseP:0.31, palletP:0.28},
+  {cat:"ready", name:"JUICY DROP BLASTS 12 X 120G", caseP:1.25, palletP:1.14},
+  {cat:"ready", name:"JUICY DROP BLASTS FRUIT TROPICAL 12 X 120G", caseP:1.67, palletP:1.52},
+  {cat:"ready", name:"JUICY DROP GUMMIES 12 X 57G", caseP:1.42, palletP:1.29},
+  {cat:"ready", name:"JUICY DROP GUMMIES XTREME 12 X 57G", caseP:1.42, palletP:1.29},
+  {cat:"ready", name:"LAYS ABALONE 22 X 56G", caseP:1.41, palletP:1.28},
+  {cat:"ready", name:"LAYS CHIPS FRIED CRAB 22 X 70G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"LAYS KUMQUAT 22 X 56G", caseP:1.41, palletP:1.28},
+  {cat:"ready", name:"LAYS SPICY CRAYFISH 22 X 70G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"LAYS TARO LIME 22 X 60G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"LIPTON POP CHEER POPCORN GRAPE GREEN TEA 30 X 50G", caseP:1.1, palletP:1.0},
+  {cat:"ready", name:"LIPTON POP CHEER POPCORN MILK TEA 30 X 50G", caseP:1.1, palletP:1.0},
+  {cat:"ready", name:"LIPTON POP CHEER POPCORN PEACH OOLONG 30 X 50G", caseP:1.1, palletP:1.0},
+  {cat:"ready", name:"LOTTE POKEPUNI FRUIT GUMMY 12 X 80G", caseP:2.58, palletP:2.35},
+  {cat:"ready", name:"MENTOS DUO GRAPE & SODA 10 X 45G", caseP:1.6, palletP:1.45},
+  {cat:"ready", name:"MIRINDA GRAPE 24 X 330ML", caseP:0.58, palletP:0.53},
+  {cat:"ready", name:"MISKETS DUBAI MILK PISTACHIO CORNET 12 X 50G", caseP:1.96, palletP:1.78},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE ALMOND DRAGEE 24 X 20G", caseP:0.69, palletP:0.63},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE CORNET 12 X 70G", caseP:1.66, palletP:1.51},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED BLACKBERRY 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED FIG 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED MANGO 12 X 80G", caseP:2.58, palletP:2.34},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE FREEZE DRIED STRAWBERRY 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE HAZELNUT DRAGEE 24 X 20G", caseP:0.69, palletP:0.63},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE PISTACHIO DRAGEE 12 X 70G", caseP:2.62, palletP:2.38},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE PISTACHIO DRAGEE 24 X 20G", caseP:0.83, palletP:0.75},
+  {cat:"ready", name:"MISKETS MILK CHOCOLATE WALNUT DRAGEE 12 X 70G", caseP:2.23, palletP:2.02},
+  {cat:"ready", name:"MISKETS STRAWBERRY WHITE CHOCOLATE COVERED BISCUIT 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MISKETS WHITE CHOCOLATE & STRAWBERRY CREAM CORNET 6 X 50G", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"MISKETS WHITE CHOCOLATE CORNET 12 X 70G", caseP:1.66, palletP:1.51},
+  {cat:"ready", name:"MISKETS WHITE CHOCOLATE FREEZE DRIED STRAWBERRY 12 X 80G", caseP:2.51, palletP:2.28},
+  {cat:"ready", name:"MORINAGA HI-CHEW GRAPE 12 X 55G", caseP:1.4, palletP:1.27},
+  {cat:"ready", name:"MORINAGA HI-CHEW STRAWBERRY 12 X 55G", caseP:1.4, palletP:1.27},
+  {cat:"ready", name:"MRBEAST FEASTABLES PEANUT BUTTER EGG 35G X 30", caseP:1.2, palletP:1.09},
+  {cat:"ready", name:"NERDS BIG CHEWY THEATER BOX 12 X 120G", caseP:1.88, palletP:1.7},
+  {cat:"ready", name:"NERDS ROPE VERY BERRY 24 X 26G", caseP:2.08, palletP:1.89},
+  {cat:"ready", name:"OKF BARLEY TEA 20 X 500ML", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"OKF CORN SILK TEA 20 X 500ML", caseP:0.9, palletP:0.82},
+  {cat:"ready", name:"OKF JELLY CHEW COCONUT 20 X 350ML", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"OKF JELLY CHEW PINEAPPLE 20 X 350ML", caseP:0.75, palletP:0.68},
+  {cat:"ready", name:"OKF RICE MILK 20 X 500ML", caseP:0.9, palletP:0.82},
+  {cat:"ready", name:"OMAN CHIPS 10 X 150G", caseP:2.0, palletP:1.82},
+  {cat:"ready", name:"OMAN CHIPS BLIK 16 X 137G", caseP:2.0, palletP:1.82},
+  {cat:"ready", name:"OREO BIRTHDAY CAKE 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO BLUEBERRY ICE CREAM ROLL 24 X 110G", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"OREO CHEESE 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO DOUBLE FRUIT BLUEBERRY & RASPBERRY 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO ICE CREAM FILLED WITH MATCHA 24 X 97G", caseP:1.46, palletP:1.33},
+  {cat:"ready", name:"OREO MINI CHOCOLATE 24 X 55G", caseP:1.31, palletP:1.19},
+  {cat:"ready", name:"OREO MINI ORIGINAL 24 X 55G", caseP:1.31, palletP:1.19},
+  {cat:"ready", name:"OREO ORIGINAL 24 X 110G", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"OREO STRAWBERRY 24 X 97G", caseP:1.48, palletP:1.34},
+  {cat:"ready", name:"OREO STRAWBERRY CHEESECAKE 16 X 154G", caseP:1.09, palletP:0.99},
+  {cat:"ready", name:"OREO WAFER BAR WHITE CHOCOLATE 30 X 58G", caseP:1.53, palletP:1.39},
+  {cat:"ready", name:"PICKLE JUICE EXTRA STRENGTH SHOT 12 X 75ML", caseP:2.08, palletP:1.89},
+  {cat:"ready", name:"PICKLE JUICE EXTRA STRENGTH SHOT 24 X 75ML", caseP:1.67, palletP:1.52},
+  {cat:"ready", name:"POCKY CLOUD CHEESECAKE 36 X 48G", caseP:2.22, palletP:2.02},
+  {cat:"ready", name:"POCKY LION BANANA PUDDING 50 X 35G", caseP:0.98, palletP:0.89},
+  {cat:"ready", name:"POCKY LITTLE RABBIT STRAWBERRY MILK 50 X 35G", caseP:0.98, palletP:0.89},
+  {cat:"ready", name:"POCKY PANDA MILK CHOCOLATE 50 X 35G", caseP:0.98, palletP:0.89},
+  {cat:"ready", name:"POKEMON CHOCOLATE FILLED BISCUIT 48 X 52G", caseP:1.09, palletP:0.99},
+  {cat:"ready", name:"POKEMON SNACK CHOCOLATE PUFFS 6 X 23G", caseP:1.83, palletP:1.67},
+  {cat:"ready", name:"POST TIMBITS BIRTHDAY CAKE CEREAL 10 X 311G", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"QDOL SPONGEBOB LYCHEE SPARKLING WATER 24 X 330ML", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"QDOL SPONGEBOB STRAWBERRY SPARKLING WATER 24 X 330ML", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"QLOVE BLOSSOM GARDEN FLAVOUR 24 X 120G", caseP:2.1, palletP:1.91},
+  {cat:"ready", name:"QLOVE CREME BRULEE FLAVOUR 24 X 120G", caseP:2.1, palletP:1.91},
+  {cat:"ready", name:"QLOVE EXOTIC LYCHEE MOCHI 24 X 80G", caseP:1.4, palletP:1.27},
+  {cat:"ready", name:"QLOVE MATCHA LATTE MOCHI 24 X 80G", caseP:1.4, palletP:1.27},
+  {cat:"ready", name:"QLOVE MILK FLAVOUR 24 X 120G", caseP:2.1, palletP:1.91},
+  {cat:"ready", name:"QLOVE TROPICAL MANGO MOCHI 24 X 80G", caseP:1.4, palletP:1.27},
+  {cat:"ready", name:"RAP SNACKS LIL BABY ALL IN FLAVOR 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RAP SNACKS LIL BABY ALL IN HOT 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RAP SNACKS NICKI MINAJ BAR-B-QUIN HONEY TRUFFLE 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RAP SNACKS RICK ROSS SWEET CHILLI LEMON PEPPER 12 X 71G", caseP:1.13, palletP:1.02},
+  {cat:"ready", name:"RED BULL SAKURA CHERRY 12 X 250ML", caseP:1.5, palletP:1.36},
+  {cat:"ready", name:"RIBON SAOTOME LEMON CHALLENGE 12 X 60G", caseP:2.59, palletP:2.36},
+  {cat:"ready", name:"SAMYANG EXTREME ZZALDDUK 2 X SPICY 24 X 80G", caseP:1.54, palletP:1.4},
+  {cat:"ready", name:"SCREAMERS NIPPERS 12 X 100G", caseP:1.33, palletP:1.21},
+  {cat:"ready", name:"SCREAMERS SOURACHA SOUR 12 X 90ML", caseP:1.28, palletP:1.16},
+  {cat:"ready", name:"SKITTLES CHEWIES FRUIT 16 X 137G", caseP:1.63, palletP:1.48},
+  {cat:"ready", name:"SOUR PATCH PEACH 24 X 80G", caseP:0.69, palletP:0.63},
+  {cat:"ready", name:"SPONGEBOB COATED STICKS BLUEBERRY 36 X 21G", caseP:0.54, palletP:0.49},
+  {cat:"ready", name:"SPONGEBOB COATED STICKS STRAWBERRY 36 X 21G", caseP:1.61, palletP:1.46},
+  {cat:"ready", name:"SPRITE RASPBERRY LEMON ZERO 12 X 330ML", caseP:0.92, palletP:0.83},
+  {cat:"ready", name:"SUGAR DADDY INC JELLY FRUITS 24 X 370ML", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"SUGAR DADDY INC SOUR JELLY FRUITS 24 X 370ML", caseP:1.35, palletP:1.23},
+  {cat:"ready", name:"SUNTJENS BERENKOPPEN MET COLASMAAK 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS BERENKOPPEN MET KAUWGUMSMAAK 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS BLAUWE FRIETEN 1 X 1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS DRACULA TANDEN MET DROPSMAAK 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS GEKLEURDE DOODSKOPPEN 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS GESUIKERDE AARDBEIEN 1 X 1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE BLAUWE DOODSKOPPEN 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE BLAUWE FRIETEN 1 X 1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE GEKLEURDE BEREN 1 X 1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE KERSEN 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"SUNTJENS ZURE SUNSET MET FRANBOZEN- EN DROPSMAAK 1 X 1.1KG", caseP:6.5, palletP:5.91},
+  {cat:"ready", name:"TAISHO LIPOVITAN KIDS JELLY GRAPE FLAVOR 6 X 125G", caseP:2.08, palletP:1.89},
+  {cat:"ready", name:"TICTAC MIX JAR ORANGE MINT 24 X 255G", caseP:3.71, palletP:3.37},
+  {cat:"ready", name:"VEIRA DUBAI STYLE 12 X 100G", caseP:1.96, palletP:1.78},
+  {cat:"ready", name:"VEIRA DUBAI STYLE PINK 12 X 100G", caseP:1.96, palletP:1.78},
+  {cat:"ready", name:"WARHEADS TWIST AND SHAKE SUPER SOUR 18 X 18G", caseP:0.56, palletP:0.51},
+  {cat:"ready", name:"WINGY CRUNCH CRISPY CHOCOLATE 12 X 50G", caseP:1.21, palletP:1.1}
+];
+DEFAULT_PRODUCTS.forEach((p, i) => { p.imgIdx = i; });
+
+const STORAGE_KEY = "baronesha_catalog_v2";
+const CUSTOM_IMG_KEY = "baronesha_catalog_v2_imgs";
+const PRICE_VIS_KEY = "baronesha_catalog_v2_pricevis";
+let products = [];
+let customImages = {};
+let showPrices = true;
+let activeFilter = "all";
+let searchQuery = "";
+let currentEditingId = null;
+
+function genId() { return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2,7); }
+
+function loadProducts() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) products = JSON.parse(saved);
+    else {
+      products = DEFAULT_PRODUCTS.map(p => ({ id: genId(), ...p }));
+      saveProducts();
+    }
+    const savedImgs = localStorage.getItem(CUSTOM_IMG_KEY);
+    if (savedImgs) customImages = JSON.parse(savedImgs);
+    const savedVis = localStorage.getItem(PRICE_VIS_KEY);
+    if (savedVis !== null) showPrices = JSON.parse(savedVis);
+  } catch(e) {
+    products = DEFAULT_PRODUCTS.map(p => ({ id: genId(), ...p }));
+  }
+}
+function saveProducts() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); } catch(e) {}
+}
+function saveCustomImages() {
+  try { localStorage.setItem(CUSTOM_IMG_KEY, JSON.stringify(customImages)); }
+  catch(e) { showToast("Hapësira u mbush", "danger"); }
+}
+function savePriceVis() {
+  try { localStorage.setItem(PRICE_VIS_KEY, JSON.stringify(showPrices)); } catch(e) {}
+}
+
+function getImageFor(p) {
+  if (customImages[p.id]) return customImages[p.id];
+  if (typeof p.imgIdx === "number" && p.imgIdx >= 0 && window.EPIC_IMAGES && p.imgIdx < window.EPIC_IMAGES.length) {
+    return window.EPIC_IMAGES[p.imgIdx];
+  }
+  return null;
+}
+
+function updatePriceToggleUI() {
+  const toggle = document.getElementById("priceToggle");
+  const state = document.getElementById("priceToggleState");
+  const banner = document.getElementById("priceStatusBanner");
+  const text = document.getElementById("priceStatusText");
+  if (showPrices) {
+    toggle.classList.add("on");
+    state.textContent = "ON";
+    banner.classList.remove("hidden-state");
+    text.innerHTML = "Çmimet janë <strong>TË DUKSHME</strong> për klientët në katalogun online.";
+  } else {
+    toggle.classList.remove("on");
+    state.textContent = "OFF";
+    banner.classList.add("hidden-state");
+    text.innerHTML = "Çmimet janë <strong>TË FSHEHURA</strong> për klientët. Ata do shohin 'Kërkoni çmimin'.";
+  }
+}
+
+document.getElementById("priceToggle").addEventListener("click", () => {
+  showPrices = !showPrices;
+  savePriceVis();
+  updatePriceToggleUI();
+  showToast(showPrices ? "Çmimet do dalin te klientët" : "Çmimet u fshehën te klientët", "success");
+});
+
+function render() {
+  const container = document.getElementById("categoriesContainer");
+  container.innerHTML = "";
+  const filtered = products.filter(p => {
+    if (activeFilter !== "all" && p.cat !== activeFilter) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+  document.getElementById("totalCount").textContent = filtered.length;
+
+  const cats = activeFilter === "all" ? ["new","ready"] : [activeFilter];
+  const catNames = { new: "New Arrivals", ready: "Ready Stock" };
+  cats.forEach(cat => {
+    const items = filtered.filter(p => p.cat === cat);
+    const section = document.createElement("div");
+    section.className = "category";
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.innerHTML = `<div class="category-title">${catNames[cat]}</div><div class="category-count">${items.length} produkte</div>`;
+    section.appendChild(header);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(p => { grid.appendChild(buildCard(p)); });
+    const addCard = document.createElement("button");
+    addCard.className = "add-card";
+    addCard.innerHTML = `<div class="plus">+</div>Shto produkt të ri`;
+    addCard.onclick = () => openAddModal(cat);
+    grid.appendChild(addCard);
+    section.appendChild(grid);
+    container.appendChild(section);
+  });
+}
+
+function buildCard(p) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.id = p.id;
+  const pillClass = p.cat === "new" ? "pill-new" : "pill-ready";
+  const pillText = p.cat === "new" ? "New" : "Ready";
+  const imgSrc = getImageFor(p);
+  const imgContent = imgSrc
+    ? `<img class="card-img" src="${imgSrc}" alt="" loading="lazy">`
+    : `<div class="card-img-placeholder">Pa foto</div>`;
+
+  card.innerHTML = `
+    <div class="card-img-wrap">
+      ${imgContent}
+      <div class="img-overlay">
+        <button class="img-btn btn-change-img">📷 Ndrysho</button>
+        ${imgSrc ? `<button class="img-btn danger btn-remove-img">✕</button>` : ''}
+      </div>
+    </div>
+    <textarea class="card-name" rows="2" spellcheck="false">${escapeHtml(p.name)}</textarea>
+    <div class="price-row">
+      <div class="price-block">
+        <div class="price-label">Case Unit</div>
+        <div class="price-input-wrap"><span class="euro">€</span><input type="number" class="price-input price-case" step="0.01" min="0" value="${p.caseP.toFixed(2)}"></div>
+      </div>
+      <div class="price-block">
+        <div class="price-label">Pallet Unit</div>
+        <div class="price-input-wrap"><span class="euro">€</span><input type="number" class="price-input price-pallet" step="0.01" min="0" value="${p.palletP.toFixed(2)}"></div>
+      </div>
+    </div>
+    <div class="card-actions">
+      <span class="card-cat-pill ${pillClass}">${pillText}</span>
+      <button class="btn-icon btn-delete">✕ Fshij</button>
+    </div>
+  `;
+
+  const nameEl = card.querySelector(".card-name");
+  const caseEl = card.querySelector(".price-case");
+  const palletEl = card.querySelector(".price-pallet");
+  const delEl = card.querySelector(".btn-delete");
+  const changeImgEl = card.querySelector(".btn-change-img");
+  const removeImgEl = card.querySelector(".btn-remove-img");
+
+  function autoGrow() { nameEl.style.height = "auto"; nameEl.style.height = nameEl.scrollHeight + "px"; }
+  setTimeout(autoGrow, 0);
+  nameEl.addEventListener("input", () => { autoGrow(); p.name = nameEl.value; saveProducts(); });
+  caseEl.addEventListener("change", () => { const v = parseFloat(caseEl.value); if (!isNaN(v)) { p.caseP = v; saveProducts(); } });
+  palletEl.addEventListener("change", () => { const v = parseFloat(palletEl.value); if (!isNaN(v)) { p.palletP = v; saveProducts(); } });
+  delEl.addEventListener("click", () => {
+    if (confirm(`Fshij "${p.name}"?`)) {
+      products = products.filter(x => x.id !== p.id);
+      delete customImages[p.id];
+      saveProducts(); saveCustomImages(); render();
+      showToast("U fshi", "danger");
+    }
+  });
+  changeImgEl.addEventListener("click", () => {
+    currentEditingId = p.id;
+    document.getElementById("imgInput").click();
+  });
+  if (removeImgEl) {
+    removeImgEl.addEventListener("click", () => {
+      if (confirm("Hiq foton?")) {
+        delete customImages[p.id];
+        p.imgIdx = -1;
+        saveProducts(); saveCustomImages(); render();
+      }
+    });
+  }
+  return card;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+}
+
+document.getElementById("imgInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file || !currentEditingId) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const max = 240;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > max) { h = h * max / w; w = max; } }
+      else { if (h > max) { w = w * max / h; h = max; } }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      customImages[currentEditingId] = canvas.toDataURL("image/jpeg", 0.82);
+      saveCustomImages(); render();
+      showToast("Fotoja u përditësua", "success");
+      currentEditingId = null;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
+
+function openAddModal(defaultCat) {
+  document.getElementById("newCat").value = defaultCat || "ready";
+  document.getElementById("newName").value = "";
+  document.getElementById("newCase").value = "";
+  document.getElementById("newPallet").value = "";
+  document.getElementById("modalAdd").classList.add("show");
+  setTimeout(() => document.getElementById("newName").focus(), 50);
+}
+document.getElementById("cancelAdd").onclick = () => { document.getElementById("modalAdd").classList.remove("show"); };
+document.getElementById("modalAdd").addEventListener("click", (e) => {
+  if (e.target.id === "modalAdd") document.getElementById("modalAdd").classList.remove("show");
+});
+document.getElementById("confirmAdd").onclick = () => {
+  const name = document.getElementById("newName").value.trim();
+  const caseP = parseFloat(document.getElementById("newCase").value);
+  const palletP = parseFloat(document.getElementById("newPallet").value);
+  const cat = document.getElementById("newCat").value;
+  if (!name) { showToast("Plotëso emrin", "danger"); return; }
+  if (isNaN(caseP) || isNaN(palletP)) { showToast("Plotëso çmimet", "danger"); return; }
+  products.unshift({ id: genId(), cat, name, caseP, palletP, imgIdx: -1 });
+  saveProducts(); render();
+  document.getElementById("modalAdd").classList.remove("show");
+  showToast("U shtua produkti", "success");
+};
+
+document.querySelectorAll(".filter-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeFilter = tab.dataset.filter;
+    render();
+  });
+});
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value;
+  render();
+});
+
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("btnExportJson").onclick = () => {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    catalog: "Week 20 - Baronesha",
+    showPrices: showPrices,
+    products: products.map(p => ({
+      cat: p.cat, name: p.name, caseP: p.caseP, palletP: p.palletP,
+      imgIdx: p.imgIdx, customImage: customImages[p.id] || null
+    }))
+  };
+  download("catalog.json", JSON.stringify(data, null, 2), "application/json");
+  showToast("JSON u shkarkua", "success");
+};
+document.getElementById("btnExportCsv").onclick = () => {
+  const rows = [["Category","Product Name","Case Unit Price (EUR)","Pallet Unit Price (EUR)"]];
+  products.forEach(p => {
+    rows.push([
+      p.cat === "new" ? "New Arrivals" : "Ready Stock",
+      p.name, p.caseP.toFixed(2), p.palletP.toFixed(2)
+    ]);
+  });
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell);
+    return /[",
+]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(",")).join("
+");
+  download("baronesha_catalog_week20.csv", "﻿" + csv, "text/csv;charset=utf-8");
+  showToast("CSV u shkarkua", "success");
+};
+document.getElementById("btnImport").onclick = () => { document.getElementById("fileInput").click(); };
+document.getElementById("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      const imported = data.products || data;
+      if (!Array.isArray(imported)) throw new Error("");
+      if (!confirm(`Importo ${imported.length} produkte?`)) return;
+      const newCustomImgs = {};
+      products = imported.map(p => {
+        const id = genId();
+        if (p.customImage) newCustomImgs[id] = p.customImage;
+        const { customImage, ...rest } = p;
+        return { id, ...rest };
+      });
+      customImages = newCustomImgs;
+      if (typeof data.showPrices === "boolean") {
+        showPrices = data.showPrices;
+        savePriceVis();
+        updatePriceToggleUI();
+      }
+      saveProducts(); saveCustomImages(); render();
+      showToast(`U importuan ${imported.length} produkte`, "success");
+    } catch(err) { showToast("Skedari i pavlefshëm", "danger"); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+let toastTimeout;
+function showToast(msg, type) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (type || "");
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { t.classList.remove("show"); }, 2400);
+}
+
+loadProducts();
+updatePriceToggleUI();
+render();
+setTimeout(() => {
+  document.getElementById("loading").classList.add("hidden");
+  if (!window.EPIC_IMAGES) document.getElementById("warnBanner").classList.add("show");
+}, 400);
+</script>
+</body>
+</html>
